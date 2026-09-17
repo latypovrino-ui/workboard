@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Доска задач">
+<meta name="theme-color" content="#1E2429">
+<title>Доска задач</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3EFE4;
+    --bg-panel:#EAE4D4;
+    --card:#FFFDF8;
+    --ink:#241F1A;
+    --ink-soft:#5C554A;
+    --line:rgba(36,31,26,.14);
+    --text-onDark:#EDE7D8;
+    --text-muted-onDark:#B4AC9B;
+    --accent-important:#B5482E;
+    --accent-important-soft:#F0DAD2;
+    --accent-normal:#4E6357;
+    --accent-normal-soft:#DDE5DF;
+    --accent-month:#9C7A22;
+    --accent-month-soft:#F1E4C2;
+    --accent-call:#2E6E6E;
+    --accent-call-soft:#D9EBE9;
+    --accent-due:#3D6A8A;
+    --accent-due-soft:#D9E4EC;
+    --danger:#B5482E;
+    --radius-card: 10px;
+    --radius-chip: 999px;
+    --shadow-card: 0 1px 0 rgba(36,31,26,.06), 0 6px 16px -10px rgba(36,31,26,.35);
+  }
+  :root:not([data-theme="light"]){
+    --bg:#1E2429;
+    --bg-panel:#262D33;
+    --card:#F6F1E4;
+    --ink:#2A2420;
+    --ink-soft:#6B6155;
+    --line:rgba(246,241,228,.14);
+    --shadow-card: 0 1px 0 rgba(0,0,0,.2), 0 10px 24px -12px rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#F3EFE4;
+      --bg-panel:#EAE4D4;
+      --card:#FFFDF8;
+      --ink:#241F1A;
+      --ink-soft:#5C554A;
+      --line:rgba(36,31,26,.14);
+      --shadow-card: 0 1px 0 rgba(36,31,26,.06), 0 6px 16px -10px rgba(36,31,26,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1E2429;
+    --bg-panel:#262D33;
+    --card:#F6F1E4;
+    --ink:#2A2420;
+    --ink-soft:#6B6155;
+    --line:rgba(246,241,228,.14);
+    --shadow-card: 0 1px 0 rgba(0,0,0,.2), 0 10px 24px -12px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text-onDark, var(--ink));
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    min-height:100vh;
+  }
+  :root:not(:has([data-theme="dark"])) body{ }
+  h1,h2,h3{font-family:'Lora',Georgia,'Times New Roman',serif;margin:0;}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px;}
+
+  header.top{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+    margin-bottom:18px;flex-wrap:wrap;
+  }
+  header.top .title-block h1{
+    font-size:clamp(24px,3.6vw,32px);
+    font-weight:700;
+    color:#EDE7D8;
+    letter-spacing:.2px;
+  }
+  header.top .title-block p{
+    margin:4px 0 0;
+    color:var(--text-muted-onDark,#B4AC9B);
+    font-size:13.5px;
+  }
+  .add-btn{
+    background:var(--accent-call);
+    color:#fff;
+    border:none;
+    padding:12px 20px;
+    border-radius:var(--radius-chip);
+    font-size:15px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;
+    box-shadow:0 6px 16px -6px rgba(46,110,110,.55);
+    transition:transform .12s ease, box-shadow .12s ease;
+    min-height:44px;
+  }
+  .add-btn:hover{transform:translateY(-1px);}
+  .add-btn:active{transform:translateY(0);}
+  .add-btn svg{width:16px;height:16px;flex:none;}
+
+  /* Reminders strip */
+  #reminders-strip{margin-bottom:20px;}
+  #reminders-strip h2{
+    font-size:14px;color:var(--text-muted-onDark,#B4AC9B);
+    font-family:'Inter',sans-serif;font-weight:600;
+    text-transform:none;letter-spacing:.2px;
+    margin:0 0 8px 2px;
+  }
+  .reminder-row{
+    display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;
+    scroll-snap-type:x proximity;
+  }
+  .reminder-card{
+    flex:none;scroll-snap-align:start;
+    min-width:198px;max-width:240px;
+    background:var(--card);color:var(--ink);
+    border-radius:var(--radius-card);
+    padding:12px 14px;
+    box-shadow:var(--shadow-card);
+    border-left:4px solid var(--accent-call);
+    cursor:pointer;
+  }
+  .reminder-card.overdue{border-left-color:var(--danger);}
+  .reminder-card .r-when{
+    font-size:12px;font-weight:700;color:var(--accent-call);
+    display:flex;align-items:center;gap:5px;margin-bottom:5px;
+  }
+  .reminder-card.overdue .r-when{color:var(--danger);}
+  .reminder-card .r-title{font-size:14.5px;font-weight:600;line-height:1.3;}
+  .reminder-empty{color:var(--text-muted-onDark,#B4AC9B);font-size:13.5px;padding:4px 2px;}
+
+  /* View tabs */
+  .view-tabs{
+    display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--line);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .view-tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{
+    background:transparent;border:none;color:var(--text-muted-onDark,#B4AC9B);
+    font-family:inherit;font-size:14.5px;font-weight:600;
+    padding:10px 4px 12px;cursor:pointer;position:relative;
+    display:inline-flex;align-items:center;gap:6px;min-height:40px;
+    margin-right:14px;flex:none;white-space:nowrap;
+  }
+  .tab-btn.active{color:#EDE7D8;}
+  .tab-btn.active::after{
+    content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:var(--accent-call);
+  }
+  .tab-count{
+    font-size:11px;font-weight:700;background:var(--accent-call);color:#fff;
+    padding:1px 7px;border-radius:999px;min-width:18px;text-align:center;
+  }
+  .tab-count:empty{display:none;}
+
+  /* Results view */
+  #results-view{display:flex;flex-direction:column;gap:10px;}
+  .result-card{
+    background:var(--card);color:var(--ink);
+    border-radius:var(--radius-card);
+    padding:14px 16px;
+    box-shadow:var(--shadow-card);
+    border-left:4px solid var(--accent-call);
+  }
+  .result-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .result-card-title{font-size:15px;font-weight:600;line-height:1.3;}
+  .result-card-when{font-size:12px;color:var(--ink-soft);white-space:nowrap;margin-top:2px;}
+  .result-card-badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+  .result-card-text{
+    font-size:13.5px;line-height:1.5;color:var(--ink);
+    white-space:pre-wrap;margin-top:4px;
+  }
+  .result-card-actions{display:flex;gap:14px;margin-top:10px;}
+  .result-card-actions button{
+    background:none;border:none;font-family:inherit;font-size:12.5px;
+    color:var(--ink-soft);cursor:pointer;padding:4px 0;font-weight:600;
+  }
+  .result-card-actions button:hover{color:var(--accent-call);}
+  .results-empty{
+    color:var(--text-muted-onDark,#8B8375);font-size:14px;
+    padding:30px 6px;text-align:center;font-style:italic;
+  }
+  .result-task-title{
+    font-size:13.5px;color:var(--text-muted-onDark,#B4AC9B);margin:-8px 0 2px;
+  }
+  #result-text{
+    width:100%;padding:11px 12px;border-radius:9px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);
+    color:#EDE7D8;font-size:16px;font-family:inherit;resize:vertical;
+  }
+
+  /* Calendar */
+  .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .cal-header h2{font-size:18px;color:#EDE7D8;font-weight:600;text-transform:capitalize;}
+  .cal-nav-btn{
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    background:transparent;color:#EDE7D8;font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cal-weekdays{
+    display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+    margin-bottom:6px;
+  }
+  .cal-weekdays span{
+    text-align:center;font-size:11.5px;color:var(--text-muted-onDark,#B4AC9B);
+    font-weight:600;padding-bottom:4px;
+  }
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-day{
+    background:var(--bg-panel);border-radius:10px;
+    min-height:74px;padding:6px 6px 8px;cursor:pointer;
+    border:1.5px solid transparent;display:flex;flex-direction:column;gap:4px;
+  }
+  .cal-day.other-month{opacity:.32;}
+  .cal-day.today{border-color:var(--accent-call);}
+  .cal-day.selected{background:rgba(237,231,216,.12);border-color:#EDE7D8;}
+  .cal-day-num{font-size:12.5px;color:#EDE7D8;font-weight:600;}
+  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;}
+  .cal-dot{width:6px;height:6px;border-radius:50%;background:var(--accent-due);}
+  .cal-dot.call{background:var(--accent-call);}
+  .cal-dot.important{background:var(--accent-important);}
+  .cal-more{font-size:10px;color:var(--text-muted-onDark,#B4AC9B);}
+  .cal-day-panel{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+  .cal-item{
+    background:var(--card);color:var(--ink);border-radius:var(--radius-card);
+    padding:10px 13px;box-shadow:var(--shadow-card);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    cursor:pointer;border-left:4px solid var(--accent-due);
+  }
+  .cal-item.call{border-left-color:var(--accent-call);}
+  .cal-item .cal-item-title{font-size:13.5px;font-weight:600;}
+  .cal-item .cal-item-time{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+  .cal-empty{color:var(--text-muted-onDark,#8B8375);font-size:13.5px;font-style:italic;padding:4px 2px;}
+
+  /* Gantt */
+  #gantt-view{overflow-x:auto;padding-bottom:6px;}
+  .gantt-empty{
+    color:var(--text-muted-onDark,#8B8375);font-size:14px;
+    padding:30px 6px;text-align:center;font-style:italic;
+  }
+  .gantt-inner{display:inline-block;min-width:100%;}
+  .gantt-row{display:flex;align-items:center;height:34px;}
+  .gantt-label{
+    width:200px;flex:none;font-size:12.5px;color:#EDE7D8;
+    padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    position:sticky;left:0;background:var(--bg);
+  }
+  .gantt-track{position:relative;height:22px;}
+  .gantt-bar{
+    position:absolute;top:2px;height:18px;border-radius:6px;
+    background:var(--accent-due);
+    display:flex;align-items:center;padding:0 8px;
+    font-size:10.5px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;
+    cursor:pointer;
+  }
+  .gantt-bar.call{background:var(--accent-call);}
+  .gantt-bar.important{background:var(--accent-important);}
+  .gantt-bar.done{background:var(--accent-normal);opacity:.6;}
+  .gantt-header-row{display:flex;margin-bottom:8px;}
+  .gantt-header-spacer{width:200px;flex:none;}
+  .gantt-header-days{display:flex;position:relative;}
+  .gantt-day-label{
+    flex:none;text-align:center;font-size:10px;color:var(--text-muted-onDark,#B4AC9B);
+    border-left:1px solid var(--line);
+  }
+  .gantt-day-label.today{color:#EDE7D8;font-weight:700;}
+  .gantt-grid-line{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);}
+
+  /* Projects / tree */
+  #projects-list{display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+  .project-card{
+    background:var(--bg-panel);border-radius:12px;padding:14px 16px;
+    cursor:pointer;border:1.5px solid transparent;
+  }
+  .project-card.selected{border-color:var(--accent-call);}
+  .project-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .project-card-head h3{font-size:16px;color:#EDE7D8;font-weight:600;}
+  .project-card-actions{display:flex;align-items:center;gap:10px;flex:none;}
+  .project-edit-btn{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--line);
+    background:transparent;color:var(--text-muted-onDark,#B4AC9B);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex:none;
+  }
+  .project-edit-btn:hover{color:#EDE7D8;border-color:#EDE7D8;}
+  .project-rename-row{display:flex;gap:8px;align-items:center;}
+  .project-rename-input{
+    flex:1;padding:8px 11px;border-radius:8px;border:1px solid var(--accent-call);
+    background:rgba(255,255,255,.06);color:#EDE7D8;font-family:inherit;font-size:16px;
+  }
+  .project-rename-save{
+    background:var(--accent-call);color:#fff;border:none;border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;flex:none;
+  }
+  .project-rename-cancel{
+    background:transparent;color:var(--text-muted-onDark,#B4AC9B);border:1px solid var(--line);
+    border-radius:8px;padding:8px 13px;font-family:inherit;font-size:12.5px;cursor:pointer;flex:none;
+  }
+  .project-progress-pct{font-size:12.5px;color:var(--text-muted-onDark,#B4AC9B);font-weight:600;}
+  .project-progress-bar{
+    height:6px;border-radius:999px;background:rgba(255,255,255,.08);
+    margin-top:9px;overflow:hidden;
+  }
+  .project-progress-fill{height:100%;background:var(--accent-call);border-radius:999px;}
+  .project-goal-text{
+    font-size:12.5px;color:var(--text-muted-onDark,#B4AC9B);margin-top:8px;
+    white-space:pre-wrap;
+  }
+  .add-project-inline{display:flex;gap:8px;margin-top:4px;}
+  .add-project-inline input{
+    flex:1;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:#EDE7D8;font-family:inherit;font-size:16px;
+  }
+  .add-project-inline button{
+    background:var(--accent-call);color:#fff;border:none;border-radius:9px;
+    padding:0 16px;font-family:inherit;font-weight:600;cursor:pointer;
+  }
+  #project-tree-wrap{background:var(--bg-panel);border-radius:14px;padding:16px;}
+  .tree-goal-edit{width:100%;min-height:52px;padding:10px 12px;border-radius:9px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:#EDE7D8;
+    font-family:inherit;font-size:16px;resize:vertical;margin-top:6px;
+  }
+  .tree-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;}
+  .tree-head h3{font-size:17px;color:#EDE7D8;}
+  .tree-add-root{
+    background:var(--accent-call);color:#fff;border:none;border-radius:8px;
+    padding:8px 14px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+    flex:none;
+  }
+  .tree-node{margin:4px 0;}
+  .tree-node-row{
+    display:flex;align-items:center;gap:8px;background:var(--card);color:var(--ink);
+    border-radius:9px;padding:9px 11px;box-shadow:var(--shadow-card);
+  }
+  .tree-node-row.done{opacity:.55;}
+  .tree-node-row.done .tree-node-title{text-decoration:line-through;}
+  .tree-check{
+    width:19px;height:19px;border-radius:5px;flex:none;
+    border:1.6px solid var(--ink-soft);background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tree-node-row.done .tree-check{background:var(--accent-normal);border-color:var(--accent-normal);}
+  .tree-check svg{width:11px;height:11px;opacity:0;}
+  .tree-node-row.done .tree-check svg{opacity:1;stroke:#fff;}
+  .tree-node-title{font-size:13.5px;font-weight:600;flex:1;cursor:pointer;}
+  .tree-node-add{
+    background:none;border:none;color:var(--ink-soft);font-size:16px;cursor:pointer;
+    flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  }
+  .tree-children{margin-left:22px;padding-left:12px;border-left:1.5px dashed var(--line);margin-top:4px;}
+  .tree-empty{color:var(--text-muted-onDark,#8B8375);font-size:13.5px;font-style:italic;padding:8px 2px;}
+
+  /* Project filter */
+  #project-filter{
+    display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;
+  }
+  .chip{
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--text-onDark,#EDE7D8);
+    padding:7px 14px;border-radius:var(--radius-chip);
+    font-size:13.5px;font-family:inherit;cursor:pointer;
+    min-height:36px;display:inline-flex;align-items:center;gap:6px;
+  }
+  .chip.active{
+    background:#EDE7D8;color:#20262B;border-color:transparent;font-weight:600;
+  }
+  .chip.add-chip{border-style:dashed;opacity:.85;}
+
+  /* Board */
+  #board{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px,1fr));
+    gap:16px;
+    align-items:start;
+  }
+  .column{
+    background:var(--bg-panel);
+    border-radius:14px;
+    padding:14px 12px 18px;
+    min-width:0;
+  }
+  .column-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:2px 6px 12px;border-bottom:1px solid var(--line);margin-bottom:12px;
+  }
+  .column-head h2{
+    font-size:16.5px;font-weight:600;color:#EDE7D8;
+  }
+  .column-head .count{
+    font-size:12px;color:var(--text-muted-onDark,#B4AC9B);
+    font-family:'Inter',sans-serif;background:rgba(255,255,255,.06);
+    padding:2px 8px;border-radius:999px;
+  }
+  .cards{display:flex;flex-direction:column;gap:10px;min-height:8px;}
+  .empty-col{
+    color:var(--text-muted-onDark,#8B8375);font-size:13px;
+    padding:10px 6px;font-style:italic;
+  }
+
+  .card{
+    background:var(--card);color:var(--ink);
+    border-radius:var(--radius-card);
+    padding:12px 13px 11px;
+    box-shadow:var(--shadow-card);
+    border-left:4px solid var(--accent-normal);
+    cursor:pointer;
+  }
+  .card.important{border-left-color:var(--accent-important);}
+  .card.done{opacity:.5;}
+  .card.done .card-title{text-decoration:line-through;}
+  .card-top{display:flex;align-items:flex-start;gap:8px;}
+  .card-check{
+    flex:none;width:20px;height:20px;border-radius:6px;
+    border:1.6px solid var(--ink-soft);
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;background:transparent;cursor:pointer;
+  }
+  .card.done .card-check{background:var(--accent-normal);border-color:var(--accent-normal);}
+  .card-check svg{width:12px;height:12px;opacity:0;}
+  .card.done .card-check svg{opacity:1;stroke:#fff;}
+  .card-title{font-size:14.5px;font-weight:600;line-height:1.35;flex:1;}
+  .card-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .badge{
+    font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:4px;
+  }
+  .badge.important{background:var(--accent-important-soft);color:var(--accent-important);}
+  .badge.month{background:var(--accent-month-soft);color:var(--accent-month);}
+  .badge.call{background:var(--accent-call-soft);color:var(--accent-call);}
+  .badge.due{background:var(--accent-due-soft);color:var(--accent-due);}
+  .badge.due.overdue{background:var(--accent-important-soft);color:var(--accent-important);}
+  .badge.project{background:rgba(36,31,26,.08);color:var(--ink-soft);}
+  .badge-reschedule{
+    border:none;background:rgba(36,31,26,.08);color:var(--ink-soft);
+    font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;
+    cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;
+  }
+  .badge-reschedule:hover{background:rgba(36,31,26,.14);}
+
+  .timer-row{
+    display:flex;align-items:center;gap:8px;margin-top:10px;
+    padding-top:9px;border-top:1px solid rgba(36,31,26,.08);
+  }
+  .timer-btn{
+    width:26px;height:26px;border-radius:50%;flex:none;
+    border:1.4px solid var(--ink-soft);background:transparent;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .timer-btn svg{width:11px;height:11px;stroke:var(--ink-soft);fill:var(--ink-soft);}
+  .timer-btn.running{background:var(--accent-call);border-color:var(--accent-call);}
+  .timer-btn.running svg{stroke:#fff;fill:#fff;}
+  .timer-text{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .timer-text.running{color:var(--accent-call);}
+
+  /* Modal */
+  #modal-overlay, #result-overlay{
+    position:fixed;inset:0;background:rgba(15,18,20,.55);
+    display:flex;align-items:flex-end;justify-content:center;
+    z-index:50;
+  }
+  @media(min-width:640px){
+    #modal-overlay, #result-overlay{align-items:center;}
+  }
+  #modal-overlay[hidden], #result-overlay[hidden]{display:none;}
+  .modal{
+    background:var(--bg-panel);
+    color:var(--text-onDark,#EDE7D8);
+    width:100%;max-width:480px;
+    border-radius:18px 18px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom,0px));
+    max-height:92vh;overflow-y:auto;
+  }
+  @media(min-width:640px){
+    .modal{border-radius:16px;}
+  }
+  .modal h2{font-size:19px;margin-bottom:16px;color:#EDE7D8;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;font-size:12.5px;font-weight:600;
+    color:var(--text-muted-onDark,#B4AC9B);margin-bottom:6px;
+  }
+  .field input[type=text], .field input[type=date], .field input[type=time], .field select{
+    width:100%;padding:11px 12px;border-radius:9px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);
+    color:#EDE7D8;font-size:16px;font-family:inherit;
+    min-height:44px;
+  }
+  .field input::placeholder{color:#7c8288;}
+  .field select{appearance:auto;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .seg{display:flex;gap:8px;flex-wrap:wrap;}
+  .seg button{
+    flex:1;min-width:110px;
+    border:1px solid var(--line);background:transparent;color:#EDE7D8;
+    padding:10px 10px;border-radius:9px;font-family:inherit;font-size:13.5px;
+    cursor:pointer;min-height:42px;
+  }
+  .seg button.on{background:#EDE7D8;color:#20262B;font-weight:600;border-color:transparent;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 2px;border-top:1px solid var(--line);margin-top:4px;}
+  .toggle-row span{font-size:14px;}
+  .switch{
+    width:44px;height:26px;border-radius:999px;background:rgba(255,255,255,.14);
+    position:relative;cursor:pointer;flex:none;border:none;
+  }
+  .switch::after{
+    content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+    border-radius:50%;background:#EDE7D8;transition:transform .15s ease;
+  }
+  .switch.on{background:var(--accent-call);}
+  .switch.on::after{transform:translateX(18px);background:#fff;}
+  .reminder-fields{display:none;gap:10px;margin-top:10px;}
+  .reminder-fields.show{display:grid;grid-template-columns:1fr 1fr;}
+  .inline-add{display:flex;gap:8px;margin-top:8px;}
+  .inline-add input{flex:1;}
+  .inline-add button{
+    background:rgba(255,255,255,.08);color:#EDE7D8;border:1px solid var(--line);
+    border-radius:8px;padding:0 14px;font-family:inherit;cursor:pointer;font-size:13px;
+  }
+  .modal-actions{display:flex;gap:10px;margin-top:18px;}
+  .btn-primary{
+    flex:1;background:var(--accent-call);color:#fff;border:none;
+    padding:13px;border-radius:10px;font-weight:600;font-size:15px;
+    font-family:inherit;cursor:pointer;min-height:46px;
+  }
+  .btn-secondary{
+    background:transparent;color:#EDE7D8;border:1px solid var(--line);
+    padding:13px 16px;border-radius:10px;font-family:inherit;cursor:pointer;
+    font-size:14px;min-height:46px;
+  }
+  .btn-delete{
+    background:transparent;color:var(--accent-important);border:1px solid rgba(181,72,46,.4);
+    padding:13px 16px;border-radius:10px;font-family:inherit;cursor:pointer;
+    font-size:14px;min-height:46px;
+  }
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px;}
+
+  @media (max-width:480px){
+    .wrap{padding:16px 12px 50px;}
+    header.top{gap:12px;}
+    .add-btn{padding:11px 16px;font-size:14px;}
+    .cal-day{min-height:52px;padding:5px 4px 6px;}
+    .cal-day-num{font-size:11.5px;}
+    .cal-weekdays span{font-size:10.5px;}
+    .gantt-label{width:130px;font-size:11.5px;}
+    .row2{grid-template-columns:1fr;gap:8px;}
+    .modal{padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title-block">
+      <h1>Доска задач</h1>
+      <p>Проекты, задачи и напоминания в одном месте</p>
+    </div>
+    <button class="add-btn" id="btn-add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Добавить задачу
+    </button>
+  </header>
+
+  <div class="view-tabs" id="view-tabs">
+    <button type="button" class="tab-btn active" data-view="board">Доска</button>
+    <button type="button" class="tab-btn" data-view="calendar">Календарь</button>
+    <button type="button" class="tab-btn" data-view="gantt">Гант</button>
+    <button type="button" class="tab-btn" data-view="projects">Проекты</button>
+    <button type="button" class="tab-btn" data-view="results">Итоги звонков<span class="tab-count" id="results-count"></span></button>
+  </div>
+
+  <section id="reminders-strip"></section>
+  <nav id="project-filter"></nav>
+  <main id="board"></main>
+  <main id="results-view" hidden></main>
+
+  <main id="calendar-view" hidden>
+    <div class="cal-header">
+      <button type="button" class="cal-nav-btn" id="cal-prev">‹</button>
+      <h2 id="cal-title"></h2>
+      <button type="button" class="cal-nav-btn" id="cal-next">›</button>
+    </div>
+    <div class="cal-weekdays" id="cal-weekdays"></div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-day-panel" id="cal-day-panel"></div>
+  </main>
+
+  <main id="gantt-view" hidden></main>
+
+  <main id="projects-view" hidden>
+    <div id="projects-list"></div>
+    <div id="project-tree-wrap"></div>
+  </main>
+</div>
+
+<div id="result-overlay" hidden>
+  <form class="modal" id="result-form">
+    <h2>Итог звонка / встречи</h2>
+    <p class="result-task-title" id="result-task-title"></p>
+    <div class="field" style="margin-top:6px;">
+      <label for="result-text">Что обсудили / чем закончилось</label>
+      <textarea id="result-text" rows="5" placeholder="Кратко опишите результат..." required></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="result-cancel">Отмена</button>
+      <button type="submit" class="btn-primary">Отметить выполненным</button>
+    </div>
+  </form>
+</div>
+
+<div id="modal-overlay" hidden>
+  <form class="modal" id="task-form">
+    <h2 id="form-title">Новая задача</h2>
+    <input type="hidden" id="f-id">
+
+    <div class="field">
+      <label for="f-title">Что нужно сделать</label>
+      <input type="text" id="f-title" placeholder="Например: подготовить КП для клиента" required>
+    </div>
+
+    <div class="field">
+      <label>Категория</label>
+      <select id="f-category"></select>
+      <div class="inline-add">
+        <input type="text" id="new-category" placeholder="Своя категория...">
+        <button type="button" id="add-category-btn">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Проект</label>
+      <select id="f-project"></select>
+      <div class="inline-add">
+        <input type="text" id="new-project" placeholder="Свой проект...">
+        <button type="button" id="add-project-btn">+</button>
+      </div>
+    </div>
+
+    <div class="field" id="parent-field-wrap" style="display:none;">
+      <label>Родительская задача в дереве проекта</label>
+      <select id="f-parent"></select>
+    </div>
+
+    <div class="field">
+      <label>Срок выполнения (необязательно)</label>
+      <div class="row2">
+        <input type="date" id="f-due-date">
+        <input type="time" id="f-due-time">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Важность</label>
+      <div class="seg" id="f-priority">
+        <button type="button" data-val="important">Важно</button>
+        <button type="button" data-val="normal">Не важно</button>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <span>Сделать в течение месяца</span>
+      <button type="button" class="switch" id="f-month"></button>
+    </div>
+
+    <div class="toggle-row">
+      <span>Это звонок или встреча</span>
+      <button type="button" class="switch" id="f-is-call"></button>
+    </div>
+    <div class="reminder-fields" id="reminder-fields">
+      <div class="field" style="margin-bottom:0;">
+        <label for="f-date">Дата</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label for="f-time">Время</label>
+        <input type="time" id="f-time">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="btn-cancel">Отмена</button>
+      <button type="button" class="btn-delete" id="btn-delete" style="display:none;">Удалить</button>
+      <button type="submit" class="btn-primary" id="btn-save">Сохранить</button>
+    </div>
+  </form>
+</div>
+
+<div id="reschedule-overlay" hidden>
+  <form class="modal" id="reschedule-form">
+    <h2>Перенести срок</h2>
+    <p class="result-task-title" id="reschedule-task-title"></p>
+    <div class="row2">
+      <div class="field" style="margin-bottom:0;">
+        <label for="rs-date">Новая дата</label>
+        <input type="date" id="rs-date">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label for="rs-time">Время</label>
+        <input type="time" id="rs-time">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="rs-cancel">Отмена</button>
+      <button type="button" class="btn-delete" id="rs-clear">Убрать срок</button>
+      <button type="submit" class="btn-primary">Перенести</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var STORE_KEY = "workboard_state_v1";
+
+  var DEFAULT_STATE = {
+    categories: [
+      {id:"cat-biz-proj", name:"Бизнес — проекты"},
+      {id:"cat-biz-task", name:"Бизнес — задачи"},
+      {id:"cat-work", name:"Рабочие задачи"}
+    ],
+    projects: [
+      {id:"proj-claude", name:"Работа с Клод", goal:""},
+      {id:"proj-business", name:"Работа в бизнесе", goal:""}
+    ],
+    tasks: [],
+    callResults: [],
+    filterProject: "all",
+    view: "board",
+    selectedProjectId: "proj-claude"
+  };
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      var parsed = JSON.parse(raw);
+      if(!parsed.categories || !parsed.projects || !parsed.tasks) throw new Error("bad shape");
+      if(typeof parsed.filterProject === "undefined") parsed.filterProject = "all";
+      if(!parsed.callResults) parsed.callResults = [];
+      if(!parsed.view) parsed.view = "board";
+      parsed.projects.forEach(function(p){ if(typeof p.goal === "undefined") p.goal = ""; });
+      if(typeof parsed.selectedProjectId === "undefined"){
+        parsed.selectedProjectId = parsed.projects.length ? parsed.projects[0].id : null;
+      }
+      return parsed;
+    }catch(e){
+      return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    }
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
+    }catch(e){
+      console.error("Не удалось сохранить данные локально:", e);
+    }
+  }
+
+  var STATE = loadState();
+
+  function uid(prefix){
+    return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function byId(id){ return document.getElementById(id); }
+
+  function catName(id){
+    var c = STATE.categories.find(function(c){return c.id===id;});
+    return c ? c.name : "Без категории";
+  }
+  function projName(id){
+    if(!id) return null;
+    var p = STATE.projects.find(function(p){return p.id===id;});
+    return p ? p.name : null;
+  }
+
+  // ---------- Reminders ----------
+  function reminderMoment(task){
+    if(!task.reminder || !task.reminder.date) return null;
+    var t = task.reminder.time || "00:00";
+    var d = new Date(task.reminder.date + "T" + t + ":00");
+    if(isNaN(d.getTime())) return null;
+    return d;
+  }
+
+  function formatReminder(d, hasTime){
+    var now = new Date();
+    var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var startOfTarget = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var diffDays = Math.round((startOfTarget - startOfToday) / 86400000);
+    var timeStr = hasTime ? d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "";
+    var dateStr = d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
+    var overdue = d < now;
+    var label;
+    if(diffDays === 0) label = "Сегодня" + (timeStr ? " в " + timeStr : "");
+    else if(diffDays === 1) label = "Завтра" + (timeStr ? " в " + timeStr : "");
+    else if(diffDays === -1) label = "Вчера" + (timeStr ? " в " + timeStr : "");
+    else if(diffDays > 1 && diffDays <= 6) label = "Через " + diffDays + " дн." + (timeStr ? ", " + timeStr : "");
+    else if(diffDays < -1) label = "Просрочено, " + dateStr;
+    else label = dateStr + (timeStr ? ", " + timeStr : "");
+    return {label: label, overdue: overdue};
+  }
+
+  function renderReminders(){
+    var el = byId("reminders-strip");
+    var upcoming = STATE.tasks
+      .filter(function(t){ return t.reminder && t.reminder.date && !t.done; })
+      .map(function(t){
+        var d = reminderMoment(t);
+        return {task:t, date:d};
+      })
+      .filter(function(x){ return x.date; })
+      .sort(function(a,b){ return a.date - b.date; });
+
+    if(upcoming.length === 0){
+      el.innerHTML = "";
+      return;
+    }
+
+    var html = '<h2>Звонки и встречи</h2><div class="reminder-row">';
+    upcoming.forEach(function(x){
+      var info = formatReminder(x.date, !!x.task.reminder.time);
+      html += '<div class="reminder-card' + (info.overdue ? ' overdue' : '') + '" data-id="' + x.task.id + '">' +
+        '<div class="r-when">' +
+          '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>' +
+          info.label +
+        '</div>' +
+        '<div class="r-title">' + escapeHtml(x.task.title) + '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+
+    el.querySelectorAll(".reminder-card").forEach(function(card){
+      card.addEventListener("click", function(){
+        openForm(card.getAttribute("data-id"));
+      });
+    });
+  }
+
+  // ---------- Project filter ----------
+  function renderProjectFilter(){
+    var el = byId("project-filter");
+    var html = '<button class="chip' + (STATE.filterProject==="all"?" active":"") + '" data-proj="all">Все</button>';
+    STATE.projects.forEach(function(p){
+      html += '<button class="chip' + (STATE.filterProject===p.id?" active":"") + '" data-proj="' + p.id + '">' + escapeHtml(p.name) + '</button>';
+    });
+    el.innerHTML = html;
+    el.querySelectorAll(".chip").forEach(function(chip){
+      chip.addEventListener("click", function(){
+        STATE.filterProject = chip.getAttribute("data-proj");
+        saveState();
+        renderProjectFilter();
+        renderBoard();
+      });
+    });
+  }
+
+  // ---------- View tabs ----------
+  function setView(view){
+    STATE.view = view;
+    byId("view-tabs").querySelectorAll(".tab-btn").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-view") === view);
+    });
+    byId("board").hidden = view !== "board";
+    byId("results-view").hidden = view !== "results";
+    byId("calendar-view").hidden = view !== "calendar";
+    byId("gantt-view").hidden = view !== "gantt";
+    byId("projects-view").hidden = view !== "projects";
+    byId("reminders-strip").style.display = view === "board" ? "" : "none";
+    byId("project-filter").style.display = view === "board" ? "" : "none";
+    if(view === "results") renderResults();
+    if(view === "calendar") renderCalendar();
+    if(view === "gantt") renderGantt();
+    if(view === "projects") renderProjectsView();
+  }
+  byId("view-tabs").querySelectorAll(".tab-btn").forEach(function(b){
+    b.addEventListener("click", function(){ setView(b.getAttribute("data-view")); });
+  });
+
+  // ---------- Calendar ----------
+  var calMonthCursor = new Date(); calMonthCursor.setDate(1);
+  var calSelectedDate = null;
+  var WEEKDAYS_RU = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  var MONTHS_RU = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+
+  function pad2(n){ return n < 10 ? "0" + n : "" + n; }
+  function dateKey(d){ return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()); }
+
+  function calendarItemsByDay(){
+    var map = {};
+    function add(key, item){
+      if(!map[key]) map[key] = [];
+      map[key].push(item);
+    }
+    STATE.tasks.forEach(function(t){
+      if(t.dueDate && t.dueDate.date){
+        add(t.dueDate.date, {task:t, kind:"due", time:t.dueDate.time});
+      }
+      if(t.reminder && t.reminder.date){
+        add(t.reminder.date, {task:t, kind:"call", time:t.reminder.time});
+      }
+    });
+    return map;
+  }
+
+  function renderCalendar(){
+    byId("cal-title").textContent = MONTHS_RU[calMonthCursor.getMonth()] + " " + calMonthCursor.getFullYear();
+
+    var wd = byId("cal-weekdays");
+    wd.innerHTML = WEEKDAYS_RU.map(function(w){ return "<span>" + w + "</span>"; }).join("");
+
+    var itemsByDay = calendarItemsByDay();
+    var year = calMonthCursor.getFullYear(), month = calMonthCursor.getMonth();
+    var firstOfMonth = new Date(year, month, 1);
+    var startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday-first
+    var gridStart = new Date(year, month, 1 - startOffset);
+    var today = new Date();
+
+    var grid = byId("cal-grid");
+    grid.innerHTML = "";
+    for(var i = 0; i < 42; i++){
+      var d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      var key = dateKey(d);
+      var cell = document.createElement("div");
+      cell.className = "cal-day" +
+        (d.getMonth() !== month ? " other-month" : "") +
+        (dateKey(d) === dateKey(today) ? " today" : "") +
+        (calSelectedDate === key ? " selected" : "");
+      var items = itemsByDay[key] || [];
+      var dotsHtml = items.slice(0,4).map(function(it){
+        var cls = it.kind === "call" ? "call" : (it.task.priority === "important" ? "important" : "");
+        return '<span class="cal-dot ' + cls + '"></span>';
+      }).join("");
+      cell.innerHTML =
+        '<span class="cal-day-num">' + d.getDate() + '</span>' +
+        '<span class="cal-dots">' + dotsHtml + '</span>';
+      cell.addEventListener("click", function(k){
+        return function(){
+          calSelectedDate = k;
+          renderCalendar();
+          renderCalDayPanel(k);
+        };
+      }(key));
+      grid.appendChild(cell);
+      if(i === 41){ /* noop */ }
+    }
+
+    if(!calSelectedDate) calSelectedDate = dateKey(today);
+    renderCalDayPanel(calSelectedDate);
+  }
+
+  function renderCalDayPanel(key){
+    var panel = byId("cal-day-panel");
+    var itemsByDay = calendarItemsByDay();
+    var items = itemsByDay[key] || [];
+    var parts = key.split("-");
+    var dLabel = new Date(parts[0], parts[1]-1, parts[2]).toLocaleDateString("ru-RU",{day:"numeric",month:"long"});
+    if(items.length === 0){
+      panel.innerHTML = '<div class="cal-empty">На ' + dLabel + ' ничего не запланировано</div>';
+      return;
+    }
+    var html = "";
+    items.forEach(function(it){
+      var timeStr = it.time ? it.time : "";
+      html += '<div class="cal-item' + (it.kind === "call" ? " call" : "") + '" data-id="' + it.task.id + '">' +
+        '<span class="cal-item-title">' + (it.kind === "call" ? "📞 " : "") + escapeHtml(it.task.title) + '</span>' +
+        '<span class="cal-item-time">' + escapeHtml(timeStr) + '</span>' +
+      '</div>';
+    });
+    panel.innerHTML = html;
+    panel.querySelectorAll(".cal-item").forEach(function(el){
+      el.addEventListener("click", function(){ openForm(el.getAttribute("data-id")); });
+    });
+  }
+
+  byId("cal-prev").addEventListener("click", function(){
+    calMonthCursor.setMonth(calMonthCursor.getMonth() - 1);
+    renderCalendar();
+  });
+  byId("cal-next").addEventListener("click", function(){
+    calMonthCursor.setMonth(calMonthCursor.getMonth() + 1);
+    renderCalendar();
+  });
+
+  // ---------- Gantt ----------
+  var MS_DAY = 86400000;
+  function truncDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  function renderGantt(){
+    var el = byId("gantt-view");
+    var items = [];
+    STATE.tasks.forEach(function(t){
+      var end = null, kind = "due";
+      if(t.dueDate && t.dueDate.date) end = new Date(t.dueDate.date + "T00:00:00");
+      else if(t.reminder && t.reminder.date){ end = new Date(t.reminder.date + "T00:00:00"); kind = "call"; }
+      if(!end || isNaN(end.getTime())) return;
+      var start = t.createdAt ? truncDay(new Date(t.createdAt)) : end;
+      if(start > end) start = end;
+      items.push({task:t, start:start, end:end, kind:kind});
+    });
+
+    if(items.length === 0){
+      el.innerHTML = '<div class="gantt-empty">Пока нет задач со сроками или звонками — график появится, когда они будут</div>';
+      return;
+    }
+
+    items.sort(function(a,b){ return a.start - b.start; });
+    var rangeStart = truncDay(items.reduce(function(min,i){ return i.start < min ? i.start : min; }, items[0].start));
+    var rangeEnd = truncDay(items.reduce(function(max,i){ return i.end > max ? i.end : max; }, items[0].end));
+    rangeEnd = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate() + 1);
+    var totalDays = Math.max(1, Math.round((rangeEnd - rangeStart) / MS_DAY) + 1);
+    var dayWidth = 30;
+    var today = truncDay(new Date());
+
+    var headerDays = "";
+    for(var i = 0; i < totalDays; i++){
+      var d = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate() + i);
+      var isToday = dateKey(d) === dateKey(today);
+      headerDays += '<div class="gantt-day-label' + (isToday ? ' today' : '') + '" style="width:' + dayWidth + 'px;">' + d.getDate() + '</div>';
+    }
+
+    var rows = "";
+    items.forEach(function(it){
+      var startOffset = Math.round((it.start - rangeStart) / MS_DAY);
+      var durationDays = Math.round((it.end - it.start) / MS_DAY) + 1;
+      var left = startOffset * dayWidth;
+      var width = Math.max(durationDays * dayWidth - 4, 22);
+      var cls = it.task.done ? "done" : (it.kind === "call" ? "call" : (it.task.priority === "important" ? "important" : ""));
+      var dateLabel = it.start.getTime() === it.end.getTime()
+        ? it.end.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})
+        : it.start.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}) + " – " + it.end.toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
+      rows +=
+        '<div class="gantt-row">' +
+          '<div class="gantt-label">' + escapeHtml(it.task.title) + '</div>' +
+          '<div class="gantt-track" style="width:' + (totalDays*dayWidth) + 'px;">' +
+            '<div class="gantt-bar ' + cls + '" data-id="' + it.task.id + '" style="left:' + left + 'px;width:' + width + 'px;" title="' + escapeHtml(it.task.title) + ' (' + dateLabel + ')">' + escapeHtml(it.task.title) + '</div>' +
+          '</div>' +
+        '</div>';
+    });
+
+    el.innerHTML =
+      '<div class="gantt-inner">' +
+        '<div class="gantt-header-row">' +
+          '<div class="gantt-header-spacer"></div>' +
+          '<div class="gantt-header-days">' + headerDays + '</div>' +
+        '</div>' +
+        rows +
+      '</div>';
+
+    el.querySelectorAll(".gantt-bar").forEach(function(bar){
+      bar.addEventListener("click", function(){ openForm(bar.getAttribute("data-id")); });
+    });
+  }
+
+  // ---------- Projects & goal tree ----------
+  function projectProgress(projectId){
+    var list = STATE.tasks.filter(function(t){ return t.projectId === projectId; });
+    if(list.length === 0) return {done:0, total:0, pct:0};
+    var done = list.filter(function(t){ return t.done; }).length;
+    return {done:done, total:list.length, pct: Math.round(done / list.length * 100)};
+  }
+
+  var editingProjectId = null;
+
+  function renderProjectsView(){
+    var listEl = byId("projects-list");
+    var html = "";
+    STATE.projects.forEach(function(p){
+      var prog = projectProgress(p.id);
+      var isEditing = editingProjectId === p.id;
+      html += '<div class="project-card' + (STATE.selectedProjectId === p.id ? ' selected' : '') + '" data-id="' + p.id + '">';
+      if(isEditing){
+        html += '<div class="project-rename-row">' +
+          '<input type="text" class="project-rename-input" id="pv-rename-input" value="' + escapeHtml(p.name) + '">' +
+          '<button type="button" class="project-rename-save" data-id="' + p.id + '">Сохранить</button>' +
+          '<button type="button" class="project-rename-cancel">Отмена</button>' +
+        '</div>';
+      }else{
+        html += '<div class="project-card-head"><h3>' + escapeHtml(p.name) + '</h3>' +
+          '<span class="project-card-actions">' +
+            '<button type="button" class="project-edit-btn" data-id="' + p.id + '" title="Переименовать">' +
+              '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
+            '</button>' +
+            '<span class="project-progress-pct">' + prog.done + '/' + prog.total + '</span>' +
+          '</span></div>';
+      }
+      html += '<div class="project-progress-bar"><div class="project-progress-fill" style="width:' + prog.pct + '%;"></div></div>' +
+        (p.goal ? '<div class="project-goal-text">🎯 ' + escapeHtml(p.goal) + '</div>' : '') +
+      '</div>';
+    });
+    html += '<div class="add-project-inline">' +
+      '<input type="text" id="pv-new-project" placeholder="Новый проект...">' +
+      '<button type="button" id="pv-add-project-btn">Добавить проект</button>' +
+    '</div>';
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll(".project-card").forEach(function(card){
+      card.addEventListener("click", function(e){
+        if(e.target.closest(".project-edit-btn, .project-rename-row")) return;
+        STATE.selectedProjectId = card.getAttribute("data-id");
+        saveState();
+        renderProjectsView();
+      });
+    });
+
+    listEl.querySelectorAll(".project-edit-btn").forEach(function(btn){
+      btn.addEventListener("click", function(e){
+        e.stopPropagation();
+        editingProjectId = btn.getAttribute("data-id");
+        renderProjectsView();
+        var input = byId("pv-rename-input");
+        if(input){ input.focus(); input.select(); }
+      });
+    });
+
+    var renameInput = byId("pv-rename-input");
+    function commitRename(){
+      var p = STATE.projects.find(function(x){ return x.id === editingProjectId; });
+      var name = renameInput ? renameInput.value.trim() : "";
+      if(p && name) p.name = name;
+      editingProjectId = null;
+      saveState();
+      renderProjectsView();
+      renderProjectFilter();
+    }
+    if(renameInput){
+      renameInput.addEventListener("click", function(e){ e.stopPropagation(); });
+      renameInput.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); commitRename(); }
+        if(e.key === "Escape"){ editingProjectId = null; renderProjectsView(); }
+      });
+    }
+    var saveBtn = listEl.querySelector(".project-rename-save");
+    if(saveBtn) saveBtn.addEventListener("click", function(e){ e.stopPropagation(); commitRename(); });
+    var cancelBtn = listEl.querySelector(".project-rename-cancel");
+    if(cancelBtn) cancelBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      editingProjectId = null;
+      renderProjectsView();
+    });
+
+    byId("pv-add-project-btn").addEventListener("click", function(){
+      var input = byId("pv-new-project");
+      var name = input.value.trim();
+      if(!name) return;
+      var id = uid("proj");
+      STATE.projects.push({id:id, name:name, goal:""});
+      STATE.selectedProjectId = id;
+      saveState();
+      renderProjectsView();
+      renderProjectFilter();
+    });
+
+    renderProjectTree();
+  }
+
+  function renderProjectTree(){
+    var wrap = byId("project-tree-wrap");
+    var project = STATE.projects.find(function(p){ return p.id === STATE.selectedProjectId; });
+    if(!project){
+      wrap.innerHTML = '<div class="tree-empty">Выберите или создайте проект выше</div>';
+      return;
+    }
+    var projectTasks = STATE.tasks.filter(function(t){ return t.projectId === project.id; });
+
+    var headHtml =
+      '<div class="tree-head">' +
+        '<div style="flex:1;">' +
+          '<h3>Дерево задач — ' + escapeHtml(project.name) + '</h3>' +
+          '<textarea class="tree-goal-edit" id="tree-goal-input" placeholder="Какая цель у этого проекта?">' + escapeHtml(project.goal || "") + '</textarea>' +
+        '</div>' +
+        '<button type="button" class="tree-add-root">+ Задача в проект</button>' +
+      '</div>' +
+      '<div id="tree-nodes"></div>';
+    wrap.innerHTML = headHtml;
+
+    var goalInput = byId("tree-goal-input");
+    goalInput.addEventListener("blur", function(){
+      project.goal = goalInput.value.trim();
+      saveState();
+      renderProjectsView();
+    });
+
+    wrap.querySelector(".tree-add-root").addEventListener("click", function(){
+      openForm(null, {projectId: project.id, parentId: null});
+    });
+
+    var nodesEl = byId("tree-nodes");
+    var roots = projectTasks.filter(function(t){
+      if(!t.parentId) return true;
+      return !projectTasks.some(function(x){ return x.id === t.parentId; });
+    });
+
+    if(roots.length === 0){
+      nodesEl.innerHTML = '<div class="tree-empty">В этом проекте пока нет задач. Добавьте первую — она станет шагом к цели.</div>';
+      return;
+    }
+    nodesEl.innerHTML = "";
+    roots.forEach(function(t){
+      nodesEl.appendChild(buildTreeNode(t, projectTasks));
+    });
+  }
+
+  function buildTreeNode(t, projectTasks){
+    var node = document.createElement("div");
+    node.className = "tree-node";
+
+    var row = document.createElement("div");
+    row.className = "tree-node-row" + (t.done ? " done" : "");
+
+    var check = document.createElement("button");
+    check.type = "button";
+    check.className = "tree-check";
+    check.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+    check.addEventListener("click", function(e){
+      e.stopPropagation();
+      var isCall = t.reminder && t.reminder.date;
+      if(isCall && !t.done){ openResultModal(t.id); return; }
+      t.done = !t.done;
+      saveState();
+      renderProjectTree();
+      renderBoard();
+      renderReminders();
+    });
+
+    var title = document.createElement("span");
+    title.className = "tree-node-title";
+    title.textContent = t.title;
+    title.addEventListener("click", function(){ openForm(t.id); });
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "tree-node-add";
+    addBtn.title = "Добавить подзадачу";
+    addBtn.textContent = "+";
+    addBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      openForm(null, {projectId: t.projectId, parentId: t.id, categoryId: t.categoryId});
+    });
+
+    row.appendChild(check);
+    row.appendChild(title);
+    row.appendChild(addBtn);
+    node.appendChild(row);
+
+    var children = projectTasks.filter(function(x){ return x.parentId === t.id; });
+    if(children.length){
+      var childWrap = document.createElement("div");
+      childWrap.className = "tree-children";
+      children.forEach(function(c){
+        childWrap.appendChild(buildTreeNode(c, projectTasks));
+      });
+      node.appendChild(childWrap);
+    }
+    return node;
+  }
+
+  function renderResultsCount(){
+    byId("results-count").textContent = STATE.callResults.length ? String(STATE.callResults.length) : "";
+  }
+
+  function renderResults(){
+    var el = byId("results-view");
+    var items = STATE.callResults.slice().sort(function(a,b){ return b.completedAt - a.completedAt; });
+    if(items.length === 0){
+      el.innerHTML = '<div class="results-empty">Здесь появятся итоги проведённых звонков и встреч</div>';
+      return;
+    }
+    el.innerHTML = "";
+    items.forEach(function(r){
+      var card = document.createElement("div");
+      card.className = "result-card";
+
+      var when = "";
+      if(r.date){
+        var d = new Date(r.date + "T" + (r.time || "00:00") + ":00");
+        if(!isNaN(d.getTime())){
+          when = d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}) + (r.time ? ", " + r.time : "");
+        }
+      }
+
+      var badgeHtml = "";
+      var pn = projName(r.projectId);
+      var cn = r.categoryId ? catName(r.categoryId) : null;
+      if(cn) badgeHtml += '<span class="badge call">' + escapeHtml(cn) + '</span>';
+      if(pn) badgeHtml += '<span class="badge project">' + escapeHtml(pn) + '</span>';
+
+      card.innerHTML =
+        '<div class="result-card-head">' +
+          '<div class="result-card-title">' + escapeHtml(r.title) + '</div>' +
+          '<div class="result-card-when">' + escapeHtml(when) + '</div>' +
+        '</div>' +
+        '<div class="result-card-badges">' + badgeHtml + '</div>' +
+        '<div class="result-card-text">' + escapeHtml(r.text) + '</div>' +
+        '<div class="result-card-actions">' +
+          '<button type="button" data-act="edit" data-id="' + r.id + '">Изменить итог</button>' +
+          '<button type="button" data-act="reopen" data-id="' + r.id + '">Вернуть в задачи</button>' +
+        '</div>';
+      el.appendChild(card);
+    });
+
+    el.querySelectorAll('[data-act="edit"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var r = STATE.callResults.find(function(x){ return x.id === btn.getAttribute("data-id"); });
+        if(r) openResultModal(r.taskId);
+      });
+    });
+    el.querySelectorAll('[data-act="reopen"]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-id");
+        var r = STATE.callResults.find(function(x){ return x.id === id; });
+        if(!r) return;
+        var t = STATE.tasks.find(function(x){ return x.id === r.taskId; });
+        if(t) t.done = false;
+        STATE.callResults = STATE.callResults.filter(function(x){ return x.id !== id; });
+        saveState();
+        renderResults();
+        renderResultsCount();
+        renderBoard();
+        renderReminders();
+      });
+    });
+  }
+
+  // ---------- Result modal (call/meeting outcomes) ----------
+  var resultOverlay = byId("result-overlay");
+  var resultForm = byId("result-form");
+  var resultTaskId = null;
+
+  function openResultModal(taskId){
+    var t = STATE.tasks.find(function(x){ return x.id === taskId; });
+    if(!t) return;
+    resultTaskId = taskId;
+    byId("result-task-title").textContent = t.title;
+    var existing = STATE.callResults.find(function(r){ return r.taskId === taskId; });
+    byId("result-text").value = existing ? existing.text : "";
+    resultOverlay.hidden = false;
+    byId("result-text").focus();
+  }
+
+  function closeResultModal(){
+    resultOverlay.hidden = true;
+    resultTaskId = null;
+    resultForm.reset();
+  }
+
+  byId("result-cancel").addEventListener("click", closeResultModal);
+  resultOverlay.addEventListener("click", function(e){
+    if(e.target === resultOverlay) closeResultModal();
+  });
+
+  resultForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!resultTaskId) return;
+    var text = byId("result-text").value.trim();
+    if(!text) return;
+    var t = STATE.tasks.find(function(x){ return x.id === resultTaskId; });
+    if(!t) return;
+
+    var existing = STATE.callResults.find(function(r){ return r.taskId === resultTaskId; });
+    if(existing){
+      existing.text = text;
+      existing.completedAt = Date.now();
+    }else{
+      STATE.callResults.push({
+        id: uid("res"),
+        taskId: t.id,
+        title: t.title,
+        categoryId: t.categoryId,
+        projectId: t.projectId,
+        date: t.reminder ? t.reminder.date : null,
+        time: t.reminder ? t.reminder.time : null,
+        text: text,
+        completedAt: Date.now()
+      });
+    }
+    t.done = true;
+    saveState();
+    closeResultModal();
+    renderBoard();
+    renderReminders();
+    renderResultsCount();
+    if(STATE.view === "results") renderResults();
+    if(STATE.view === "calendar") renderCalendar();
+    if(STATE.view === "gantt") renderGantt();
+    if(STATE.view === "projects") renderProjectsView();
+  });
+
+  function formatDuration(totalSeconds){
+    var mins = Math.floor(totalSeconds / 60);
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    if(h === 0 && m === 0) return "0м";
+    if(h === 0) return m + "м";
+    return h + "ч " + (m ? m + "м" : "");
+  }
+
+  function elapsedSeconds(t){
+    var base = t.timeSpent || 0;
+    if(t.timerStartedAt){
+      base += (Date.now() - t.timerStartedAt) / 1000;
+    }
+    return base;
+  }
+
+  function toggleTimer(t){
+    if(t.timerStartedAt){
+      t.timeSpent = (t.timeSpent || 0) + (Date.now() - t.timerStartedAt) / 1000;
+      t.timerStartedAt = null;
+    }else{
+      t.timerStartedAt = Date.now();
+    }
+    saveState();
+    renderBoard();
+  }
+
+  // ---------- Board ----------
+  function priorityRank(t){ return t.priority === "important" ? 0 : 1; }
+
+  function renderBoard(){
+    var board = byId("board");
+    board.innerHTML = "";
+
+    STATE.categories.forEach(function(cat){
+      var tasks = STATE.tasks.filter(function(t){
+        if(t.categoryId !== cat.id) return false;
+        if(STATE.filterProject !== "all" && t.projectId !== STATE.filterProject) return false;
+        return true;
+      }).sort(function(a,b){
+        if(a.done !== b.done) return a.done ? 1 : -1;
+        var pr = priorityRank(a) - priorityRank(b);
+        if(pr !== 0) return pr;
+        return 0;
+      });
+
+      var col = document.createElement("div");
+      col.className = "column";
+      var head = document.createElement("div");
+      head.className = "column-head";
+      head.innerHTML = "<h2>" + escapeHtml(cat.name) + "</h2><span class=\"count\">" + tasks.length + "</span>";
+      col.appendChild(head);
+
+      var cardsWrap = document.createElement("div");
+      cardsWrap.className = "cards";
+
+      if(tasks.length === 0){
+        var empty = document.createElement("div");
+        empty.className = "empty-col";
+        empty.textContent = "Пока пусто";
+        cardsWrap.appendChild(empty);
+      }else{
+        tasks.forEach(function(t){
+          cardsWrap.appendChild(renderCard(t));
+        });
+      }
+      col.appendChild(cardsWrap);
+      board.appendChild(col);
+    });
+  }
+
+  function renderCard(t){
+    var card = document.createElement("div");
+    card.className = "card" + (t.priority === "important" ? " important" : "") + (t.done ? " done" : "");
+
+    var top = document.createElement("div");
+    top.className = "card-top";
+
+    var check = document.createElement("button");
+    check.type = "button";
+    check.className = "card-check";
+    check.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+    check.addEventListener("click", function(e){
+      e.stopPropagation();
+      var isCall = t.reminder && t.reminder.date;
+      if(isCall && !t.done){
+        openResultModal(t.id);
+        return;
+      }
+      if(isCall && t.done){
+        // unchecking a completed call: just reopen it, keep the recorded result
+        t.done = false;
+        saveState();
+        renderBoard();
+        renderReminders();
+        return;
+      }
+      t.done = !t.done;
+      saveState();
+      renderBoard();
+      renderReminders();
+    });
+
+    var title = document.createElement("div");
+    title.className = "card-title";
+    title.textContent = t.title;
+
+    top.appendChild(check);
+    top.appendChild(title);
+    card.appendChild(top);
+
+    var badges = document.createElement("div");
+    badges.className = "card-badges";
+    var badgeHtml = "";
+    if(t.priority === "important") badgeHtml += '<span class="badge important">Важно</span>';
+    if(t.month) badgeHtml += '<span class="badge month">В этом месяце</span>';
+    if(t.dueDate && t.dueDate.date){
+      var dd = new Date(t.dueDate.date + "T" + (t.dueDate.time || "00:00") + ":00");
+      if(!isNaN(dd.getTime())){
+        var ddInfo = formatReminder(dd, !!t.dueDate.time);
+        badgeHtml += '<span class="badge due' + (ddInfo.overdue && !t.done ? ' overdue' : '') + '">' +
+          '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>' +
+          'Срок: ' + ddInfo.label + '</span>';
+      }
+    }
+    if(t.reminder && t.reminder.date){
+      var d = reminderMoment(t);
+      var info = d ? formatReminder(d, !!t.reminder.time) : null;
+      badgeHtml += '<span class="badge call">' +
+        '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 5c0 8 7 15 15 15l2-4-6-2-2 2c-3-1.5-5-3.5-6.5-6.5l2-2-2-6z"/></svg>' +
+        (info ? info.label : "Напоминание") + '</span>';
+    }
+    var pn = projName(t.projectId);
+    if(pn) badgeHtml += '<span class="badge project">' + escapeHtml(pn) + '</span>';
+    badges.innerHTML = badgeHtml;
+    if(t.dueDate && t.dueDate.date && !t.done){
+      var rsBtn = document.createElement("button");
+      rsBtn.type = "button";
+      rsBtn.className = "badge-reschedule";
+      rsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v5h5"/></svg>Перенести';
+      rsBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        openRescheduleModal(t.id);
+      });
+      badges.appendChild(rsBtn);
+    }
+    card.appendChild(badges);
+
+    var timerRow = document.createElement("div");
+    timerRow.className = "timer-row";
+    var running = !!t.timerStartedAt;
+    var timerBtn = document.createElement("button");
+    timerBtn.type = "button";
+    timerBtn.className = "timer-btn" + (running ? " running" : "");
+    timerBtn.innerHTML = running
+      ? '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5z"/></svg>';
+    timerBtn.addEventListener("click", function(e){
+      e.stopPropagation();
+      toggleTimer(t);
+    });
+    var timerText = document.createElement("span");
+    timerText.className = "timer-text" + (running ? " running" : "");
+    timerText.textContent = "В работе: " + formatDuration(elapsedSeconds(t));
+    timerRow.appendChild(timerBtn);
+    timerRow.appendChild(timerText);
+    card.appendChild(timerRow);
+
+    card.addEventListener("click", function(){ openForm(t.id); });
+    return card;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ---------- Reschedule modal ----------
+  var rescheduleOverlay = byId("reschedule-overlay");
+  var rescheduleForm = byId("reschedule-form");
+  var rescheduleTaskId = null;
+
+  function openRescheduleModal(taskId){
+    var t = STATE.tasks.find(function(x){ return x.id === taskId; });
+    if(!t) return;
+    rescheduleTaskId = taskId;
+    byId("reschedule-task-title").textContent = t.title;
+    byId("rs-date").value = t.dueDate ? t.dueDate.date : "";
+    byId("rs-time").value = t.dueDate && t.dueDate.time ? t.dueDate.time : "";
+    rescheduleOverlay.hidden = false;
+  }
+  function closeRescheduleModal(){
+    rescheduleOverlay.hidden = true;
+    rescheduleTaskId = null;
+    rescheduleForm.reset();
+  }
+  byId("rs-cancel").addEventListener("click", closeRescheduleModal);
+  rescheduleOverlay.addEventListener("click", function(e){
+    if(e.target === rescheduleOverlay) closeRescheduleModal();
+  });
+  byId("rs-clear").addEventListener("click", function(){
+    if(!rescheduleTaskId) return;
+    var t = STATE.tasks.find(function(x){ return x.id === rescheduleTaskId; });
+    if(t) t.dueDate = null;
+    saveState();
+    renderBoard();
+    closeRescheduleModal();
+  });
+  rescheduleForm.addEventListener("submit", function(e){
+    e.preventDefault();
+    if(!rescheduleTaskId) return;
+    var t = STATE.tasks.find(function(x){ return x.id === rescheduleTaskId; });
+    if(!t) return;
+    var dateVal = byId("rs-date").value;
+    if(!dateVal){ closeRescheduleModal(); return; }
+    t.dueDate = { date: dateVal, time: byId("rs-time").value || "" };
+    saveState();
+    renderBoard();
+    closeRescheduleModal();
+  });
+
+  // ---------- Form / Modal ----------
+  var overlay = byId("modal-overlay");
+  var form = byId("task-form");
+  var currentEditId = null;
+
+  function fillSelects(){
+    var catSel = byId("f-category");
+    catSel.innerHTML = STATE.categories.map(function(c){
+      return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+    }).join("");
+
+    var projSel = byId("f-project");
+    projSel.innerHTML = '<option value="">Без проекта</option>' + STATE.projects.map(function(p){
+      return '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>';
+    }).join("");
+  }
+
+  function fillParentOptions(selectedProjectId, excludeTaskId){
+    var wrap = byId("parent-field-wrap");
+    var sel = byId("f-parent");
+    if(!selectedProjectId){
+      wrap.style.display = "none";
+      sel.innerHTML = "";
+      return;
+    }
+    var candidates = STATE.tasks.filter(function(t){
+      return t.projectId === selectedProjectId && t.id !== excludeTaskId;
+    });
+    wrap.style.display = "";
+    sel.innerHTML = '<option value="">Без родителя (корень дерева)</option>' + candidates.map(function(t){
+      return '<option value="' + t.id + '">' + escapeHtml(t.title) + '</option>';
+    }).join("");
+  }
+  byId("f-project").addEventListener("change", function(){
+    fillParentOptions(this.value || null, currentEditId);
+  });
+
+  function setPriority(val){
+    byId("f-priority").querySelectorAll("button").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-val") === val);
+    });
+    form.setAttribute("data-priority", val);
+  }
+  byId("f-priority").querySelectorAll("button").forEach(function(b){
+    b.addEventListener("click", function(){ setPriority(b.getAttribute("data-val")); });
+  });
+
+  function setSwitch(btn, on){
+    btn.classList.toggle("on", !!on);
+  }
+  byId("f-month").addEventListener("click", function(){
+    setSwitch(this, !this.classList.contains("on"));
+  });
+  byId("f-is-call").addEventListener("click", function(){
+    var on = !this.classList.contains("on");
+    setSwitch(this, on);
+    byId("reminder-fields").classList.toggle("show", on);
+  });
+
+  byId("add-category-btn").addEventListener("click", function(){
+    var input = byId("new-category");
+    var name = input.value.trim();
+    if(!name) return;
+    var id = uid("cat");
+    STATE.categories.push({id:id, name:name});
+    saveState();
+    fillSelects();
+    byId("f-category").value = id;
+    input.value = "";
+  });
+
+  byId("add-project-btn").addEventListener("click", function(){
+    var input = byId("new-project");
+    var name = input.value.trim();
+    if(!name) return;
+    var id = uid("proj");
+    STATE.projects.push({id:id, name:name, goal:""});
+    saveState();
+    fillSelects();
+    byId("f-project").value = id;
+    fillParentOptions(id, currentEditId);
+    input.value = "";
+    renderProjectFilter();
+  });
+
+  function openForm(taskId, presets){
+    fillSelects();
+    currentEditId = taskId || null;
+    var task = taskId ? STATE.tasks.find(function(t){return t.id===taskId;}) : null;
+    presets = presets || {};
+
+    byId("form-title").textContent = task ? "Редактировать задачу" : "Новая задача";
+    byId("btn-delete").style.display = task ? "inline-flex" : "none";
+    byId("f-id").value = task ? task.id : "";
+    byId("f-title").value = task ? task.title : "";
+    byId("f-category").value = task ? task.categoryId : (presets.categoryId || STATE.categories[0].id);
+    var projectVal = task && task.projectId ? task.projectId : (presets.projectId || "");
+    byId("f-project").value = projectVal;
+    byId("f-due-date").value = task && task.dueDate ? task.dueDate.date : "";
+    byId("f-due-time").value = task && task.dueDate && task.dueDate.time ? task.dueDate.time : "";
+    fillParentOptions(projectVal || null, taskId);
+    var parentVal = task ? (task.parentId || "") : (presets.parentId || "");
+    byId("f-parent").value = parentVal;
+    setPriority(task ? task.priority : "normal");
+    setSwitch(byId("f-month"), task ? !!task.month : false);
+    var hasReminder = task && task.reminder && task.reminder.date;
+    setSwitch(byId("f-is-call"), !!hasReminder);
+    byId("reminder-fields").classList.toggle("show", !!hasReminder);
+    byId("f-date").value = hasReminder ? task.reminder.date : "";
+    byId("f-time").value = hasReminder && task.reminder.time ? task.reminder.time : "";
+
+    overlay.hidden = false;
+  }
+
+  function closeForm(){
+    overlay.hidden = true;
+    currentEditId = null;
+    form.reset();
+  }
+
+  function refreshSecondaryViews(){
+    if(STATE.view === "calendar") renderCalendar();
+    if(STATE.view === "gantt") renderGantt();
+    if(STATE.view === "projects") renderProjectsView();
+  }
+
+  byId("btn-add").addEventListener("click", function(){ openForm(null); });
+  byId("btn-cancel").addEventListener("click", closeForm);
+  overlay.addEventListener("click", function(e){
+    if(e.target === overlay) closeForm();
+  });
+
+  byId("btn-delete").addEventListener("click", function(){
+    if(!currentEditId) return;
+    var deletedId = currentEditId;
+    STATE.tasks = STATE.tasks.filter(function(t){ return t.id !== deletedId; });
+    // orphaned children become root nodes in their project tree automatically
+    saveState();
+    renderBoard();
+    renderReminders();
+    refreshSecondaryViews();
+    closeForm();
+  });
+
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var title = byId("f-title").value.trim();
+    if(!title) return;
+
+    var isCall = byId("f-is-call").classList.contains("on");
+    var reminder = null;
+    if(isCall && byId("f-date").value){
+      reminder = { date: byId("f-date").value, time: byId("f-time").value || "" };
+    }
+
+    var dueDateVal = byId("f-due-date").value;
+    var dueDate = dueDateVal ? { date: dueDateVal, time: byId("f-due-time").value || "" } : null;
+
+    var projectVal = byId("f-project").value || null;
+    var parentVal = projectVal ? (byId("f-parent").value || null) : null;
+    if(parentVal === currentEditId) parentVal = null; // guard against self-parenting
+
+    var data = {
+      title: title,
+      categoryId: byId("f-category").value,
+      projectId: projectVal,
+      parentId: parentVal,
+      priority: form.getAttribute("data-priority") === "important" ? "important" : "normal",
+      month: byId("f-month").classList.contains("on"),
+      dueDate: dueDate,
+      reminder: reminder
+    };
+
+    if(currentEditId){
+      var t = STATE.tasks.find(function(t){ return t.id === currentEditId; });
+      if(t) Object.assign(t, data);
+    }else{
+      data.id = uid("task");
+      data.done = false;
+      data.createdAt = Date.now();
+      data.timeSpent = 0;
+      data.timerStartedAt = null;
+      STATE.tasks.push(data);
+    }
+    saveState();
+    renderBoard();
+    renderReminders();
+    refreshSecondaryViews();
+    closeForm();
+  });
+
+  // ---------- Init ----------
+  function renderAll(){
+    renderReminders();
+    renderProjectFilter();
+    renderBoard();
+    renderResultsCount();
+    var knownViews = ["board","calendar","gantt","projects","results"];
+    setView(knownViews.indexOf(STATE.view) !== -1 ? STATE.view : "board");
+  }
+  renderAll();
+
+  setInterval(function(){
+    var anyRunning = STATE.tasks.some(function(t){ return !!t.timerStartedAt; });
+    if(anyRunning && STATE.view === "board") renderBoard();
+  }, 30000);
+})();
+</script>
+</body>
+</html>
