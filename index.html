@@ -105,6 +105,7 @@
   }
   .cloud-status.ok{background:rgba(46,110,110,.18);color:#7FC4C0;}
   .cloud-status::before{content:'●';font-size:8px;}
+  .header-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch;}
   .add-btn{
     background:var(--accent-call);
     color:#fff;
@@ -115,11 +116,17 @@
     font-weight:600;
     font-family:inherit;
     cursor:pointer;
-    display:inline-flex;align-items:center;gap:8px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
     box-shadow:0 6px 16px -6px rgba(46,110,110,.55);
     transition:transform .12s ease, box-shadow .12s ease;
     min-height:44px;
   }
+  .add-btn.secondary{
+    background:transparent;color:var(--text-onDark,#EDE7D8);
+    border:1px solid var(--line);box-shadow:none;
+    padding:9px 20px;min-height:38px;font-size:13.5px;
+  }
+  .add-btn.secondary:hover{border-color:#EDE7D8;}
   .add-btn:hover{transform:translateY(-1px);}
   .add-btn:active{transform:translateY(0);}
   .add-btn svg{width:16px;height:16px;flex:none;}
@@ -270,6 +277,7 @@
 
   /* Results view */
   #results-view{display:flex;flex-direction:column;gap:10px;}
+  #results-view[hidden]{display:none;}
   .result-card{
     background:var(--card);color:var(--ink);
     border-radius:var(--radius-card);
@@ -347,6 +355,7 @@
   .cal-item .cal-item-title{font-size:13.5px;font-weight:600;}
   .cal-item .cal-item-time{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
   .cal-empty{color:var(--text-muted-onDark,#8B8375);font-size:13.5px;font-style:italic;padding:4px 2px;}
+  .gantt-list-project{font-weight:400;color:var(--ink-soft);font-size:12px;}
 
   /* Gantt */
   #gantt-view{overflow-x:auto;padding-bottom:6px;}
@@ -508,29 +517,65 @@
     gap:16px;
     align-items:start;
   }
+  #board[hidden]{display:none;}
   .column{
     background:var(--bg-panel);
     border-radius:14px;
     padding:14px 12px 18px;
     min-width:0;
+    transition:opacity .15s ease, box-shadow .15s ease;
   }
+  .column.dragging{opacity:.4;}
+  .column.drag-over{box-shadow:inset 0 0 0 2px var(--accent-call);}
   .column-head{
     display:flex;align-items:center;justify-content:space-between;
     padding:2px 6px 12px;border-bottom:1px solid var(--line);margin-bottom:12px;
+    cursor:grab;
   }
+  .column-head:active{cursor:grabbing;}
   .column-head h2{
     font-size:16.5px;font-weight:600;color:#EDE7D8;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
+  .column-head-actions{display:flex;align-items:center;gap:5px;flex:none;}
   .column-head .count{
     font-size:12px;color:var(--text-muted-onDark,#B4AC9B);
     font-family:'Inter',sans-serif;background:rgba(255,255,255,.06);
     padding:2px 8px;border-radius:999px;
   }
+  .col-move-btn{
+    width:22px;height:22px;border-radius:50%;border:1px solid var(--line);
+    background:transparent;color:var(--text-muted-onDark,#B4AC9B);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;
+  }
+  .col-move-btn:hover:not(:disabled){color:#EDE7D8;border-color:#EDE7D8;}
+  .col-move-btn:disabled{opacity:.25;cursor:default;}
+  .col-delete-btn{
+    width:22px;height:22px;border-radius:50%;border:1px solid var(--line);
+    background:transparent;color:var(--text-muted-onDark,#B4AC9B);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .col-delete-btn:hover{color:var(--accent-important);border-color:var(--accent-important);}
   .cards{display:flex;flex-direction:column;gap:10px;min-height:8px;}
   .empty-col{
     color:var(--text-muted-onDark,#8B8375);font-size:13px;
     padding:10px 6px;font-style:italic;
   }
+  .add-column{
+    background:transparent;border:1.5px dashed var(--line);
+    display:flex;align-items:center;justify-content:center;cursor:default;
+  }
+  .add-column-inner{width:100%;display:flex;flex-direction:column;gap:8px;}
+  .add-column-input{
+    width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:#EDE7D8;font-family:inherit;font-size:16px;
+  }
+  .add-column-btn{
+    background:rgba(255,255,255,.08);color:#EDE7D8;border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;
+    font-weight:600;cursor:pointer;
+  }
+  .add-column-btn:hover{border-color:#EDE7D8;}
 
   .card{
     background:var(--card);color:var(--ink);
@@ -725,10 +770,16 @@
       <h1>Доска задач</h1>
       <p>Проекты, задачи и напоминания в одном месте <span class="cloud-status" id="cloud-status">Только на этом устройстве</span></p>
     </div>
-    <button class="add-btn" id="btn-add">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Добавить задачу
-    </button>
+    <div class="header-actions">
+      <button class="add-btn secondary" id="btn-add-project">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Добавить проект
+      </button>
+      <button class="add-btn" id="btn-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Добавить задачу
+      </button>
+    </div>
   </header>
 
   <div class="view-tabs" id="view-tabs">
@@ -1255,8 +1306,9 @@
     var html = "";
     items.forEach(function(it){
       var timeStr = it.time ? it.time : "";
+      var pn = projName(it.task.projectId);
       html += '<div class="cal-item' + (it.kind === "call" ? " call" : "") + '" data-id="' + it.task.id + '">' +
-        '<span class="cal-item-title">' + (it.kind === "call" ? "📞 " : "") + escapeHtml(it.task.title) + '</span>' +
+        '<span class="cal-item-title">' + (it.kind === "call" ? "📞 " : "") + escapeHtml(it.task.title) + (pn ? ' <span class="gantt-list-project">· ' + escapeHtml(pn) + '</span>' : '') + '</span>' +
         '<span class="cal-item-time">' + escapeHtml(timeStr) + '</span>' +
       '</div>';
     });
@@ -1450,6 +1502,18 @@
         '</div>';
     });
 
+    var listHtml = "";
+    items.forEach(function(it){
+      var dateLabel = it.start.getTime() === it.end.getTime()
+        ? it.end.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})
+        : it.start.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}) + " – " + it.end.toLocaleDateString("ru-RU",{day:"numeric",month:"short"});
+      var pn = projName(it.task.projectId);
+      listHtml += '<div class="cal-item' + (it.kind === "call" ? " call" : "") + '" data-id="' + it.task.id + '">' +
+        '<span class="cal-item-title">' + (it.kind === "call" ? "📞 " : "") + escapeHtml(it.task.title) + (pn ? ' <span class="gantt-list-project">· ' + escapeHtml(pn) + '</span>' : '') + '</span>' +
+        '<span class="cal-item-time">' + escapeHtml(dateLabel) + '</span>' +
+      '</div>';
+    });
+
     el.innerHTML =
       '<div class="gantt-inner">' +
         '<div class="gantt-header-row">' +
@@ -1457,10 +1521,14 @@
           '<div class="gantt-header-days">' + headerDays + '</div>' +
         '</div>' +
         rows +
-      '</div>';
+      '</div>' +
+      '<div class="cal-day-panel">' + listHtml + '</div>';
 
     el.querySelectorAll(".gantt-bar").forEach(function(bar){
       bar.addEventListener("click", function(){ openForm(bar.getAttribute("data-id")); });
+    });
+    el.querySelectorAll(".cal-item").forEach(function(row){
+      row.addEventListener("click", function(){ openForm(row.getAttribute("data-id")); });
     });
   }
 
@@ -1873,13 +1941,54 @@
     return 2;
   }
 
+  var draggedCatId = null;
+
+  function moveCategory(id, dir){
+    var idx = STATE.categories.findIndex(function(c){ return c.id === id; });
+    var newIdx = idx + dir;
+    if(idx === -1 || newIdx < 0 || newIdx >= STATE.categories.length) return;
+    var arr = STATE.categories;
+    var tmp = arr[idx]; arr[idx] = arr[newIdx]; arr[newIdx] = tmp;
+    saveState();
+    renderBoard();
+  }
+
+  function reorderCategories(draggedId, targetId){
+    var arr = STATE.categories;
+    var from = arr.findIndex(function(c){ return c.id === draggedId; });
+    var to = arr.findIndex(function(c){ return c.id === targetId; });
+    if(from === -1 || to === -1 || from === to) return;
+    var item = arr.splice(from,1)[0];
+    arr.splice(to,0,item);
+    saveState();
+    renderBoard();
+  }
+
+  function deleteCategoryWithConfirm(id){
+    if(STATE.categories.length <= 1){
+      window.alert("Нужна хотя бы одна категория — удалите её позже, когда добавите другую.");
+      return;
+    }
+    var cat = STATE.categories.find(function(c){ return c.id === id; });
+    if(!cat) return;
+    var count = STATE.tasks.filter(function(t){ return t.categoryId === id; }).length;
+    var other = STATE.categories.find(function(c){ return c.id !== id; });
+    var msg = "Удалить категорию «" + cat.name + "»?" +
+      (count ? " " + count + " задач(и) переедут в категорию «" + other.name + "»." : "");
+    if(!window.confirm(msg)) return;
+    STATE.tasks.forEach(function(t){ if(t.categoryId === id) t.categoryId = other.id; });
+    STATE.categories = STATE.categories.filter(function(c){ return c.id !== id; });
+    saveState();
+    renderBoard();
+  }
+
   function renderBoard(){
     var board = byId("board");
     board.innerHTML = "";
     if(typeof renderMiniCalendar === "function") renderMiniCalendar();
     if(typeof renderUrgentWidget === "function") renderUrgentWidget();
 
-    STATE.categories.forEach(function(cat){
+    STATE.categories.forEach(function(cat, idx){
       var tasks = STATE.tasks.filter(function(t){
         if(t.categoryId !== cat.id) return false;
         if(STATE.filterProject !== "all" && t.projectId !== STATE.filterProject) return false;
@@ -1893,9 +2002,38 @@
 
       var col = document.createElement("div");
       col.className = "column";
+      col.addEventListener("dragover", function(e){ e.preventDefault(); col.classList.add("drag-over"); });
+      col.addEventListener("dragleave", function(){ col.classList.remove("drag-over"); });
+      col.addEventListener("drop", function(e){
+        e.preventDefault();
+        col.classList.remove("drag-over");
+        if(draggedCatId && draggedCatId !== cat.id) reorderCategories(draggedCatId, cat.id);
+        draggedCatId = null;
+      });
+
       var head = document.createElement("div");
       head.className = "column-head";
-      head.innerHTML = "<h2>" + escapeHtml(cat.name) + "</h2><span class=\"count\">" + tasks.length + "</span>";
+      head.draggable = true;
+      head.addEventListener("dragstart", function(e){
+        draggedCatId = cat.id;
+        col.classList.add("dragging");
+        if(e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      });
+      head.addEventListener("dragend", function(){ col.classList.remove("dragging"); });
+      head.innerHTML =
+        '<h2>' + escapeHtml(cat.name) + '</h2>' +
+        '<span class="column-head-actions">' +
+          '<button type="button" class="col-move-btn" data-dir="-1"' + (idx === 0 ? ' disabled' : '') + ' title="Сдвинуть влево">‹</button>' +
+          '<button type="button" class="col-move-btn" data-dir="1"' + (idx === STATE.categories.length - 1 ? ' disabled' : '') + ' title="Сдвинуть вправо">›</button>' +
+          '<span class="count">' + tasks.length + '</span>' +
+          '<button type="button" class="col-delete-btn" title="Удалить категорию">' +
+            '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13"/></svg>' +
+          '</button>' +
+        '</span>';
+      head.querySelectorAll(".col-move-btn").forEach(function(btn){
+        btn.addEventListener("click", function(){ moveCategory(cat.id, parseInt(btn.getAttribute("data-dir"),10)); });
+      });
+      head.querySelector(".col-delete-btn").addEventListener("click", function(){ deleteCategoryWithConfirm(cat.id); });
       col.appendChild(head);
 
       var cardsWrap = document.createElement("div");
@@ -1914,6 +2052,28 @@
       col.appendChild(cardsWrap);
       board.appendChild(col);
     });
+
+    var addCol = document.createElement("div");
+    addCol.className = "column add-column";
+    addCol.innerHTML =
+      '<div class="add-column-inner">' +
+        '<input type="text" class="add-column-input" placeholder="Название категории...">' +
+        '<button type="button" class="add-column-btn">+ Добавить категорию</button>' +
+      '</div>';
+    var addInput = addCol.querySelector(".add-column-input");
+    var addBtn = addCol.querySelector(".add-column-btn");
+    function commitNewCategory(){
+      var name = addInput.value.trim();
+      if(!name) return;
+      STATE.categories.push({id: uid("cat"), name: name});
+      saveState();
+      renderBoard();
+    }
+    addBtn.addEventListener("click", commitNewCategory);
+    addInput.addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ e.preventDefault(); commitNewCategory(); }
+    });
+    board.appendChild(addCol);
   }
 
   function renderCard(t){
@@ -2250,6 +2410,18 @@
   }
 
   byId("btn-add").addEventListener("click", function(){ openForm(null); });
+  byId("btn-add-project").addEventListener("click", function(){
+    var name = window.prompt("Название нового проекта:");
+    if(!name) return;
+    name = name.trim();
+    if(!name) return;
+    var id = uid("proj");
+    STATE.projects.push({id:id, name:name, goal:"", notes:""});
+    STATE.selectedProjectId = id;
+    saveState();
+    renderProjectFilter();
+    setView("projects");
+  });
   byId("btn-cancel").addEventListener("click", closeForm);
   overlay.addEventListener("click", function(e){
     if(e.target === overlay) closeForm();
