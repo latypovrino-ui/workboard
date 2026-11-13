@@ -182,18 +182,17 @@ async function ghPush(silent){
  try{
   const tok=ghToken();if(!tok)return;
   let gistId=localStorage.getItem('ghGist');
-  if(!gistId&&!silent){
-   gistId=(prompt('ID хранилища. Если создаёте впервые — нажмите ОК с пустым полем. Если на другом компьютере — вставьте ID из адреса gist (символы после gist.github.com/):','')||'').trim();
-  }
   ghSt('…','#eab308');
   const body={description:'Данные дашборда',public:false,files:{'dashboard-data.json':{content:JSON.stringify(S)}}};
-  const res=gistId
+  let res=gistId
    ?await fetch('https://api.github.com/gists/'+gistId,{method:'PATCH',headers:ghHeaders(tok),body:JSON.stringify(body)})
-   :await fetch('https://api.github.com/gists',{method:'POST',headers:ghHeaders(tok),body:JSON.stringify(body)});
-  if(res.status===401){localStorage.removeItem('ghTok');ghSt('✕ токен','#f87171');alert('Токен не принят. Создайте новый и нажмите «В GitHub» снова.');return;}
+   :null;
+  if(res&&res.status===404){localStorage.removeItem('ghGist');gistId=null;res=null;}
+  if(res&&res.status===401){localStorage.removeItem('ghTok');ghSt('✕ токен','#f87171');alert('Токен не принят. Создайте новый и нажмите «В GitHub» снова.');return;}
+  if(!res||!res.ok){res=await fetch('https://api.github.com/gists',{method:'POST',headers:ghHeaders(tok),body:JSON.stringify(body)});}
   if(!res.ok){const t=await res.text();ghSt('✕ '+res.status,'#f87171');alert('Ошибка GitHub '+res.status+': '+t.slice(0,180));return;}
   const j=await res.json();
-  if(!gistId)localStorage.setItem('ghGist',j.id);
+  localStorage.setItem('ghGist',j.id);
   ghSt('✓ '+new Date().toLocaleTimeString('ru-RU'),'#4ade80');
   if(!silent)alert('Сохранено в GitHub ✓'+(j.html_url?'\nАдрес хранилища: '+j.html_url:''));
  }catch(e){ghSt('✕ сеть','#f87171');errShow('GitHub',e);}
