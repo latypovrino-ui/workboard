@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v12</title>
+<title>Мой дашборд v13</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -68,9 +68,9 @@ canvas{max-width:100%}
 <button class="sb" data-p="pers" onclick="go('pers')"><span class="ic">🏡</span><span class="lbl">Личное</span></button>
 <button class="sb" data-p="fin" onclick="go('fin')"><span class="ic">💰</span><span class="lbl">Финансы</span></button>
 <button class="sb" data-p="hab" onclick="go('hab')"><span class="ic">✅</span><span class="lbl">Привычки</span></button>
-<button class="sb" onclick="exportData()"><span class="ic">💾</span><span class="lbl">Бэкап</span></button>
-<label class="sb" style="cursor:pointer"><span class="ic">📂</span><span class="lbl">Восстановить</span><input type="file" accept=".json,application/json" style="display:none" onchange="importData(this)"></label>
-<div class="ver" onclick="resetAll()" title="Сбросить все данные и загрузить заново">v12 ⟳</div>
+<button class="sb" onclick="ghPush()"><span class="ic">☁️</span><span class="lbl">В GitHub</span></button>
+<button class="sb" onclick="ghPull()"><span class="ic">⬇️</span><span class="lbl">Из GitHub</span></button>
+<div class="ver" style="border-color:#374151;color:#6b7280" id="ghst">—</div>
 </div>
 <div id="main">
 <div id="pg-home" class="page"></div>
@@ -127,7 +127,7 @@ function defaults(){
   ]
  };
 }
-const KEY='aliceDashV10';
+const KEY='aliceDashV13';
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
 if(!S||!S.months)S=defaults();
@@ -152,34 +152,66 @@ function repair(){
  if(!S.habM||!/^\d{4}-\d{2}$/.test(S.habM))S.habM=isoOf(new Date()).slice(0,7);
 }
 repair();
-function save(){localStorage.setItem(KEY,JSON.stringify(S));}
+let _ghT=null;
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(S));
+ if(localStorage.getItem('ghTok')&&localStorage.getItem('ghGist')){
+  clearTimeout(_ghT);
+  _ghT=setTimeout(function(){ghPush(true);},3000);
+ }
+}
 function resetAll(){
- if(confirm('Сбросить все данные дашборда? Введённые вами суммы и проекты заменятся на примеры. Сначала лучше сделать 💾 Бэкап!')){
+ if(confirm('Сбросить все данные дашборда? Данные заменятся на примеры. Если включено хранение в GitHub — потом нажмите «Из GitHub», чтобы вернуть записи.')){
   localStorage.removeItem(KEY);
   location.reload();
  }
 }
-function exportData(){
- try{
-  const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='dashboard-backup-'+isoOf(new Date())+'.json';
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
- }catch(e){errShow('бэкап',e);}
+/* ===== хранение в GitHub ===== */
+function ghHeaders(tok){return {'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json'};}
+function ghToken(){
+ let tok=localStorage.getItem('ghTok');
+ if(!tok){
+  tok=(prompt('GitHub-токен (ghp…). Получить: github.com → Settings → Developer settings → Personal access tokens → с галочкой gist:','')||'').trim();
+  if(!tok)return null;
+  localStorage.setItem('ghTok',tok);
+ }
+ return tok;
 }
-function importData(inp){
- const f=inp.files&&inp.files[0];if(!f)return;
- const rd=new FileReader();
- rd.onload=function(){
-  try{
-   const d=JSON.parse(rd.result);
-   if(!d||!d.months)throw new Error('в файле нет данных дашборда');
-   S=d;save();repair();location.reload();
-  }catch(e){alert('Не удалось прочитать файл: '+e.message);}
- };
- rd.readAsText(f);
+function ghSt(txt,color){const e=$('#ghst');if(e){e.textContent=txt;e.style.color=color;}}
+async function ghPush(silent){
+ try{
+  const tok=ghToken();if(!tok)return;
+  let gistId=localStorage.getItem('ghGist');
+  if(!gistId&&!silent){
+   gistId=(prompt('ID хранилища. Если создаёте впервые — нажмите ОК с пустым полем. Если на другом компьютере — вставьте ID из адреса gist (символы после gist.github.com/):','')||'').trim();
+  }
+  ghSt('…','#eab308');
+  const body={description:'Данные дашборда',public:false,files:{'dashboard-data.json':{content:JSON.stringify(S)}}};
+  const res=gistId
+   ?await fetch('https://api.github.com/gists/'+gistId,{method:'PATCH',headers:ghHeaders(tok),body:JSON.stringify(body)})
+   :await fetch('https://api.github.com/gists',{method:'POST',headers:ghHeaders(tok),body:JSON.stringify(body)});
+  if(res.status===401){localStorage.removeItem('ghTok');ghSt('✕ токен','#f87171');alert('Токен не принят. Создайте новый и нажмите «В GitHub» снова.');return;}
+  if(!res.ok){const t=await res.text();ghSt('✕ '+res.status,'#f87171');alert('Ошибка GitHub '+res.status+': '+t.slice(0,180));return;}
+  const j=await res.json();
+  if(!gistId)localStorage.setItem('ghGist',j.id);
+  ghSt('✓ '+new Date().toLocaleTimeString('ru-RU'),'#4ade80');
+  if(!silent)alert('Сохранено в GitHub ✓'+(j.html_url?'\nАдрес хранилища: '+j.html_url:''));
+ }catch(e){ghSt('✕ сеть','#f87171');errShow('GitHub',e);}
+}
+async function ghPull(){
+ const tok=ghToken();if(!tok)return;
+ const gistId=localStorage.getItem('ghGist');
+ if(!gistId){alert('Хранилище ещё не создано — сначала нажмите «В GitHub».');return;}
+ try{
+  const res=await fetch('https://api.github.com/gists/'+gistId,{headers:ghHeaders(tok)});
+  if(!res.ok){alert('Ошибка GitHub '+res.status);return;}
+  const j=await res.json();
+  const f=j.files&&j.files['dashboard-data.json'];
+  if(!f){alert('В хранилище нет файла с данными.');return;}
+  const d=JSON.parse(f.content);
+  if(!d||!d.months)throw new Error('структура не похожа на данные дашборда');
+  S=d;save();repair();location.reload();
+ }catch(e){errShow('GitHub',e);}
 }
 function go(p){
  $$('.sb').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
@@ -400,15 +432,16 @@ function finOv(m,box){
  h+=kpi('Деньги',inc-fix-vr,'доход − расход');
  h+=kpi('Доходы',inc,'план '+fmt(pInc)+' ₽');
  h+=kpi('Расходы',fix+vr,'план '+fmt(pExp)+' ₽');
- h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽ · вкладка «Сбережения»');
+ h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории — категории из трат добавляются в таблицу сами. Сбережения заполняются на отдельной вкладке «Сбережения».</span></div>';
+ h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории — категории из трат добавляются в таблицу сами. Полная таблица сбережений — на вкладке «Сбережения», здесь — сводка и быстрое редактирование.</span></div>';
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expFix','Обязательные расходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
+ h+=tableHTML(m,S.finM,'sav','Сбережения');
  box.innerHTML=h;
 }
-/* поля: имя правится без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
+/* поля обновляют данные без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
 function tableHTML(m,mi,key,title){
  const isVar=(key==='expVar');
  const rows=m[key];
@@ -465,7 +498,7 @@ function finSv(m,box){
  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(m.sav,r=>r.plan))+'</td><td class="num">'+fmt(sum(m.sav,r=>r.fact))+'</td><td class="num">'+fmt(sum(m.sav,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
  h+='</table><button class="btn" onclick="addSav('+S.finM+')">+ добавить цель</button>';
  if(!m.sav.length)h+='<button class="btn gray" onclick="addSavDef('+S.finM+')">вернуть пример «Подушка»</button>';
- h+='<div class="small" style="margin-top:8px">Введите сумму в «Внесено» и щёлкните в другое место — итог и обзор пересчитаются. Прыжков страницы здесь не будет.</div></div>';
+ h+='<div class="small" style="margin-top:8px">Введите сумму в «Внесено» и щёлкните в другое место — итог и обзор пересчитаются.</div></div>';
  box.innerHTML=h;
 }
 function setSav(mi,i,f,v){S.months[mi].sav[i][f]=v;save();}
