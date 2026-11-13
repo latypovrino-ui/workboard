@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v13</title>
+<title>Мой дашборд v14</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -127,9 +127,21 @@ function defaults(){
   ]
  };
 }
-const KEY='aliceDashV13';
+const KEY='aliceDashV14';
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+/* если под своим ярлыком данных нет — ищем данные дашборда под любым другим ярлыком */
+if(!S||!S.months){
+ try{
+  for(let i=0;i<localStorage.length;i++){
+   const k=localStorage.key(i);
+   if(k===KEY)continue;
+   let d=null;
+   try{d=JSON.parse(localStorage.getItem(k))}catch(e){d=null}
+   if(d&&d.months&&Array.isArray(d.months)&&d.months.length&&d.months[0]&&d.months[0].income){S=d;break;}
+  }
+ }catch(e){}
+}
 if(!S||!S.months)S=defaults();
 function repair(){
  ['work','biz','pers'].forEach(p=>{
