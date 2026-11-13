@@ -348,7 +348,7 @@ function finRender(){
  h+='<div class="mrow"><button class="btn gray" onclick="mvMonth(-1)">‹</button><span class="mname">'+esc(m.name)+'</span><button class="btn gray" onclick="mvMonth(1)">›</button>';
  h+='<select class="f" onchange="pickMonth(this.value)">'+S.months.map((x,i)=>'<option value="'+i+'" '+(i===S.finM?'selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select>';
  h+='<button class="btn" onclick="addMonth()">+ месяц (с переносом)</button><button class="btn red" onclick="delMonth()">Удалить месяц</button></div>';
- h+='<div class="tabs">'+[['ov','Обзор'],['cr','Кредиты и долги'],['ex','Ежедневные траты'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
+ h+='<div class="tabs">'+[['ov','Обзор'],['cr','Кредиты и долги'],['ex','Ежедневные траты'],['sv','Сбережения'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
  h+='<div id="fin-body"></div>';
  $('#pg-fin').innerHTML=h;
  try{finBody();}catch(e){errShow('финансы',e);}
@@ -362,6 +362,7 @@ function finBody(){
  if(S.finTab==='ov')finOv(m,box);
  else if(S.finTab==='cr')finCr(m,box);
  else if(S.finTab==='ex')finEx(m,box);
+ else if(S.finTab==='sv')finSv(m,box);
  else finCh(m,box);
 }
 /* категории из ежедневных трат автоматически становятся строками переменных расходов */
@@ -399,22 +400,22 @@ function finOv(m,box){
  h+=kpi('Деньги',inc-fix-vr,'доход − расход');
  h+=kpi('Доходы',inc,'план '+fmt(pInc)+' ₽');
  h+=kpi('Расходы',fix+vr,'план '+fmt(pExp)+' ₽');
- h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
+ h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽ · вкладка «Сбережения»');
  h+='</div>';
- h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории. Категории из ваших трат добавляются в таблицу автоматически. Траты без категории попадают в строку «Прочее».</span></div>';
+ h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории — категории из трат добавляются в таблицу сами. Сбережения заполняются на отдельной вкладке «Сбережения».</span></div>';
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expFix','Обязательные расходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
- h+=tableHTML(m,S.finM,'sav','Сбережения');
  box.innerHTML=h;
 }
+/* поля: имя правится без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
 function tableHTML(m,mi,key,title){
  const isVar=(key==='expVar');
  const rows=m[key];
  let h='<div class="card"><b>'+title+'</b><table class="t"><tr><th>Категория</th><th class="r" style="width:110px">План</th><th class="r" style="width:110px">Факт</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
  rows.forEach((r,i)=>{
   const fact=isVar?catExpSum(m,r.name):(r.fact||0);
-  h+='<tr><td><input class="cell" value="'+esc(r.name)+'" oninput="setCell('+mi+',\''+key+'\','+i+',\'name\',this.value);finBody()"></td>';
+  h+='<tr><td><input class="cell" value="'+esc(r.name)+'" oninput="setCell('+mi+',\''+key+'\','+i+',\'name\',this.value)" onchange="finBody()"></td>';
   h+='<td><input class="cell num" value="'+(r.plan||0)+'" onchange="setCellNum('+mi+',\''+key+'\','+i+',\'plan\',this.value)"></td>';
   if(isVar){
    h+='<td class="num" title="считается из ежедневных трат по этой категории">'+fmt(fact)+'</td>';
@@ -450,6 +451,29 @@ function setCell(mi,key,i,f,v){S.months[mi][key][i][f]=v;save();}
 function setCellNum(mi,key,i,f,v){S.months[mi][key][i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addRow(mi,key){S.months[mi][key].push(mkRow('',0,0));save();finBody();}
 function delRow(mi,key,i){S.months[mi][key].splice(i,1);save();finBody();}
+/* ===== вкладка сбережений ===== */
+function finSv(m,box){
+ let h='<div class="card"><b>Сбережения — '+esc(m.name)+'</b><table class="t"><tr><th>Название цели</th><th class="r" style="width:110px">План (в месяц)</th><th class="r" style="width:110px">Внесено</th><th class="r" style="width:110px">Осталось внести</th><th class="r" style="width:30px"></th></tr>';
+ m.sav.forEach((r,i)=>{
+  const rest=(r.plan||0)-(r.fact||0);
+  h+='<tr><td><input class="cell" value="'+esc(r.name)+'" oninput="setSav('+S.finM+','+i+',\'name\',this.value)"></td>';
+  h+='<td><input class="cell num" value="'+(r.plan||0)+'" onchange="setSavNum('+S.finM+','+i+',\'plan\',this.value)"></td>';
+  h+='<td><input class="cell num" value="'+(r.fact||0)+'" onchange="setSavNum('+S.finM+','+i+',\'fact\',this.value)"></td>';
+  h+='<td class="num" style="color:'+(rest>=0?'#4ade80':'#f87171')+'">'+fmt(rest)+'</td>';
+  h+='<td class="r"><button class="del" onclick="delSav('+S.finM+','+i+')">✕</button></td></tr>';
+ });
+ h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(m.sav,r=>r.plan))+'</td><td class="num">'+fmt(sum(m.sav,r=>r.fact))+'</td><td class="num">'+fmt(sum(m.sav,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
+ h+='</table><button class="btn" onclick="addSav('+S.finM+')">+ добавить цель</button>';
+ if(!m.sav.length)h+='<button class="btn gray" onclick="addSavDef('+S.finM+')">вернуть пример «Подушка»</button>';
+ h+='<div class="small" style="margin-top:8px">Введите сумму в «Внесено» и щёлкните в другое место — итог и обзор пересчитаются. Прыжков страницы здесь не будет.</div></div>';
+ box.innerHTML=h;
+}
+function setSav(mi,i,f,v){S.months[mi].sav[i][f]=v;save();}
+function setSavNum(mi,i,f,v){S.months[mi].sav[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
+function addSav(mi){S.months[mi].sav.push(mkRow('Новая цель',0,0));save();finBody();}
+function addSavDef(mi){S.months[mi].sav.push(mkRow('Подушка',10000,0));save();finBody();}
+function delSav(mi,i){S.months[mi].sav.splice(i,1);save();finBody();}
+/* ===== кредиты и долги ===== */
 function finCr(m,box){
  let h='<div class="card"><b>Кредиты и долги</b><table class="t"><tr><th>Банк</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
  m.credits.forEach((c,i)=>{
@@ -463,8 +487,15 @@ function finCr(m,box){
  });
  const tot=f=>sum(m.credits,c=>c[f]||0);
  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(tot('pay'))+'</td><td class="num">'+fmt(tot('paid'))+'</td><td class="num">'+fmt(tot('debtStart'))+'</td><td class="num">'+fmt(sum(m.credits,c=>Math.max(0,(c.debtStart||0)-(c.paid||0))))+'</td><td></td></tr>';
- h+='</table><button class="btn" onclick="addCr('+S.finM+')">+ добавить кредит</button><div class="small" style="margin-top:8px">Остаток = долг на начало − оплачено. При переносе месяца остаток становится новым долгом.</div></div>';
+ h+='</table><button class="btn" onclick="addCr('+S.finM+')">+ добавить кредит</button>';
+ if(!m.credits.length)h+='<button class="btn gray" onclick="restoreCredits('+S.finM+')">вернуть примеры кредитов</button>';
+ h+='<div class="small" style="margin-top:8px">Остаток = долг на начало − оплачено. При переносе месяца остаток становится новым долгом.</div></div>';
  box.innerHTML=h;
+}
+function restoreCredits(mi){
+ S.months[mi].credits.push({name:'Т-кредитка',pay:30000,paid:0,debtStart:69493});
+ S.months[mi].credits.push({name:'Пример банка',pay:5000,paid:0,debtStart:120000});
+ save();finBody();
 }
 function setCr(mi,i,f,v){S.months[mi].credits[i][f]=v;save();}
 function setCrNum(mi,i,f,v){S.months[mi].credits[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
