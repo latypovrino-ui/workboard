@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v11</title>
+<title>Мой дашборд v12</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -68,7 +68,9 @@ canvas{max-width:100%}
 <button class="sb" data-p="pers" onclick="go('pers')"><span class="ic">🏡</span><span class="lbl">Личное</span></button>
 <button class="sb" data-p="fin" onclick="go('fin')"><span class="ic">💰</span><span class="lbl">Финансы</span></button>
 <button class="sb" data-p="hab" onclick="go('hab')"><span class="ic">✅</span><span class="lbl">Привычки</span></button>
-<div class="ver" onclick="resetAll()" title="Сбросить все данные и загрузить заново">v11 ⟳</div>
+<button class="sb" onclick="exportData()"><span class="ic">💾</span><span class="lbl">Бэкап</span></button>
+<label class="sb" style="cursor:pointer"><span class="ic">📂</span><span class="lbl">Восстановить</span><input type="file" accept=".json,application/json" style="display:none" onchange="importData(this)"></label>
+<div class="ver" onclick="resetAll()" title="Сбросить все данные и загрузить заново">v12 ⟳</div>
 </div>
 <div id="main">
 <div id="pg-home" class="page"></div>
@@ -96,7 +98,7 @@ function mkMonth(name){
  return {name:name,
   income:[mkRow('Зарплата',80000,0),mkRow('Фриланс',10000,0)],
   expFix:[mkRow('Аренда',20000,0),mkRow('Кредиты',0,0),mkRow('Связь',1000,0)],
-  expVar:[mkRow('Продукты',20000,0),mkRow('Транспорт',3000,0),mkRow('Кафе',5000,0)],
+  expVar:[mkRow('Продукты',10000,0),mkRow('Транспорт',3000,0),mkRow('Кафе',5000,0)],
   sav:[mkRow('Подушка',10000,0)],
   credits:[
    {name:'Т-кредитка',pay:30000,paid:0,debtStart:69493},
@@ -152,10 +154,32 @@ function repair(){
 repair();
 function save(){localStorage.setItem(KEY,JSON.stringify(S));}
 function resetAll(){
- if(confirm('Сбросить все данные дашборда? Введённые вами суммы и проекты заменятся на примеры.')){
+ if(confirm('Сбросить все данные дашборда? Введённые вами суммы и проекты заменятся на примеры. Сначала лучше сделать 💾 Бэкап!')){
   localStorage.removeItem(KEY);
   location.reload();
  }
+}
+function exportData(){
+ try{
+  const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='dashboard-backup-'+isoOf(new Date())+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+ }catch(e){errShow('бэкап',e);}
+}
+function importData(inp){
+ const f=inp.files&&inp.files[0];if(!f)return;
+ const rd=new FileReader();
+ rd.onload=function(){
+  try{
+   const d=JSON.parse(rd.result);
+   if(!d||!d.months)throw new Error('в файле нет данных дашборда');
+   S=d;save();repair();location.reload();
+  }catch(e){alert('Не удалось прочитать файл: '+e.message);}
+ };
+ rd.readAsText(f);
 }
 function go(p){
  $$('.sb').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
@@ -172,14 +196,21 @@ function render(p){
  }catch(e){errShow('страница '+p,e);}
 }
 function monthFact(m,key){return sum(m[key],r=>r.fact);}
+function dayExpList(m){
+ const mi=MONTHS.indexOf(m.name);
+ if(mi<0)return [];
+ const yr=new Date().getFullYear();
+ return S.expenses.filter(x=>x.d&&x.d.slice(5,7)===String(mi+1).padStart(2,'0')&&x.d.slice(0,4)===String(yr)).sort((a,b)=>a.d<b.d?-1:1);
+}
+function dayExpSum(m){return sum(dayExpList(m),x=>x.sum);}
 function rHome(){
  const m=S.months[S.finM];
- const inc=monthFact(m,'income'),exp=monthFact(m,'expFix')+monthFact(m,'expVar');
+ const inc=monthFact(m,'income'),exp=monthFact(m,'expFix')+dayExpSum(m);
  const allT=['work','biz','pers'].reduce((n,p)=>n+S.tasks[p].filter(t=>!t.done).length,0);
  let h='<h1>Главная</h1><div class="cards">';
  h+='<div class="kpi"><div class="lbl">Деньги ('+esc(m.name)+')</div><div class="val">'+fmt(inc-exp)+' ₽</div><div class="sub">доход − расход</div></div>';
  h+='<div class="kpi"><div class="lbl">Доходы</div><div class="val">'+fmt(inc)+' ₽</div></div>';
- h+='<div class="kpi"><div class="lbl">Расходы</div><div class="val">'+fmt(exp)+' ₽</div></div>';
+ h+='<div class="kpi"><div class="lbl">Расходы</div><div class="val">'+fmt(exp)+' ₽</div><div class="sub">включая ежедневные траты</div></div>';
  h+='<div class="kpi"><div class="lbl">Незавершённых задач</div><div class="val">'+allT+'</div></div></div>';
  h+='<div class="card"><b>Привычки сегодня</b><div id="habToday" style="margin-top:10px"></div></div>';
  $('#pg-home').innerHTML=h;
@@ -333,24 +364,31 @@ function finBody(){
  else finCh(m,box);
 }
 function kpi(lbl,val,sub2){return '<div class="kpi"><div class="lbl">'+lbl+'</div><div class="val">'+fmt(val)+' ₽</div>'+(sub2?'<div class="sub">'+sub2+'</div>':'')+'</div>';}
-function dayExpList(m){
- const mi=MONTHS.indexOf(m.name);
- if(mi<0)return [];
- const yr=new Date().getFullYear();
- return S.expenses.filter(x=>x.d&&x.d.slice(5,7)===String(mi+1).padStart(2,'0')&&x.d.slice(0,4)===String(yr)).sort((a,b)=>a.d<b.d?-1:1);
+/* сумма ежедневных трат, попавших в конкретную категорию таблицы */
+function catExpSum(m,catName){
+ const c=(catName||'').trim().toLowerCase();
+ return sum(dayExpList(m),x=>((x.cat||'').trim().toLowerCase()===c)?x.sum:0);
 }
-function dayExpSum(m){return sum(dayExpList(m),x=>x.sum);}
+function varFactSum(m){
+ /* факт переменных расходов: строки без категории-двойника считают свой факт, двойники берут из трат */
+ let matched=0;
+ m.expVar.forEach(r=>{matched+=catExpSum(m,r.name);});
+ const leftover=sum(dayExpList(m),x=>{
+  const c=(x.cat||'').trim().toLowerCase();
+  return c&&m.expVar.some(r=>r.name.trim().toLowerCase()===c)?0:x.sum;
+ });
+ return matched+leftover;
+}
 function finOv(m,box){
- const inc=monthFact(m,'income'),fix=monthFact(m,'expFix'),vr=monthFact(m,'expVar'),sav=monthFact(m,'sav');
- const dayExp=dayExpSum(m);
+ const inc=monthFact(m,'income'),fix=monthFact(m,'expFix'),vr=varFactSum(m),sav=monthFact(m,'sav');
  const pInc=sum(m.income,r=>r.plan),pExp=sum(m.expFix,r=>r.plan)+sum(m.expVar,r=>r.plan),pSav=sum(m.sav,r=>r.plan);
  let h='<div class="cards">';
- h+=kpi('Деньги',inc-fix-vr-dayExp,'доход − расход − траты');
+ h+=kpi('Деньги',inc-fix-vr,'доход − расход');
  h+=kpi('Доходы',inc,'план '+fmt(pInc)+' ₽');
- h+=kpi('Расходы',fix+vr+dayExp,'план '+fmt(pExp)+' ₽ · траты '+fmt(dayExp)+' ₽');
+ h+=kpi('Расходы',fix+vr,'план '+fmt(pExp)+' ₽');
  h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Ежедневные траты за '+esc(m.name)+': <b>'+fmt(dayExp)+' ₽</b> — уже учтены в «Расходах» и «Деньгах». Если хотите распределять траты по своим статьям (продукты, транспорт и т. д.), вписывайте их прямо в таблицу «Переменные расходы» ниже.</span></div>';
+ h+='<div class="card"><span class="small">Как это работает: факт «Переменных расходов» складывается из <b>ежедневных трат по категориям</b>. Задайте категориям план в таблице ниже (например, Продукты — 10000), а дальше просто добавляйте траты на вкладке «Ежедневные траты» — суммы с совпадающей категорией подтянутся в «Факт» сами. Траты с категорией, которой нет в таблице, попадут в строку «Прочее».</span></div>';
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expFix','Обязательные расходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
@@ -358,16 +396,36 @@ function finOv(m,box){
  box.innerHTML=h;
 }
 function tableHTML(m,mi,key,title){
+ const isVar=(key==='expVar');
  const rows=m[key];
- let h='<div class="card"><b>'+title+'</b><table class="t"><tr><th>Название</th><th class="r" style="width:110px">План</th><th class="r" style="width:110px">Факт</th><th class="r" style="width:110px">Разница</th><th class="r" style="width:30px"></th></tr>';
+ let h='<div class="card"><b>'+title+'</b><table class="t"><tr><th>Категория</th><th class="r" style="width:110px">План</th><th class="r" style="width:110px">Факт</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
  rows.forEach((r,i)=>{
-  h+='<tr><td><input class="cell" value="'+esc(r.name)+'" oninput="setCell('+mi+',\''+key+'\','+i+',\'name\',this.value)"></td>';
-  ['plan','fact'].forEach(f=>{h+='<td><input class="cell num" value="'+(r[f]||0)+'" onchange="setCellNum('+mi+',\''+key+'\','+i+',\''+f+'\',this.value)"></td>';});
-  h+='<td class="num" style="color:'+(((r.fact||0)-(r.plan||0))>=0?'#4ade80':'#f87171')+'">'+fmt((r.fact||0)-(r.plan||0))+'</td>';
+  const fact=isVar?catExpSum(m,r.name):(r.fact||0);
+  h+='<tr><td><input class="cell" value="'+esc(r.name)+'" oninput="setCell('+mi+',\''+key+'\','+i+',\'name\',this.value);finBody()"></td>';
+  h+='<td><input class="cell num" value="'+(r.plan||0)+'" onchange="setCellNum('+mi+',\''+key+'\','+i+',\'plan\',this.value)"></td>';
+  if(isVar){
+   h+='<td class="num" title="считается из ежедневных трат по этой категории">'+fmt(fact)+'</td>';
+  }else{
+   h+='<td><input class="cell num" value="'+(r.fact||0)+'" onchange="setCellNum('+mi+',\''+key+'\','+i+',\'fact\',this.value)"></td>';
+  }
+  const diff=(r.plan||0)-fact;
+  h+='<td class="num" style="color:'+(diff>=0?'#4ade80':'#f87171')+'">'+fmt(diff)+'</td>';
   h+='<td class="r"><button class="del" onclick="delRow('+mi+',\''+key+'\','+i+')">✕</button></td></tr>';
  });
- h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(rows,r=>r.plan))+'</td><td class="num">'+fmt(sum(rows,r=>r.fact))+'</td><td class="num">'+fmt(sum(rows,r=>(r.fact||0)-(r.plan||0)))+'</td><td></td></tr>';
- h+='</table><button class="btn" onclick="addRow('+mi+',\''+key+'\')">+ добавить строку</button></div>';
+ if(isVar){
+  const rest=sum(dayExpList(m),x=>{
+   const c=(x.cat||'').trim().toLowerCase();
+   return c&&rows.some(r=>r.name.trim().toLowerCase()===c)?0:x.sum;
+  });
+  if(rest>0)h+='<tr><td><span class="small">Прочее (категории нет в таблице)</span></td><td></td><td class="num">'+fmt(rest)+'</td><td class="num" style="color:#f87171">−'+fmt(rest)+'</td><td></td></tr>';
+  const totF=varFactSum(m);
+  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(rows,r=>r.plan))+'</td><td class="num">'+fmt(totF)+'</td><td class="num">'+fmt(sum(rows,r=>r.plan)-totF)+'</td><td></td></tr>';
+ }else{
+  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(rows,r=>r.plan))+'</td><td class="num">'+fmt(sum(rows,r=>r.fact))+'</td><td class="num">'+fmt(sum(rows,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
+ }
+ h+='</table><button class="btn" onclick="addRow('+mi+',\''+key+'\')">+ добавить строку</button>';
+ if(isVar)h+='<span class="small" style="margin-left:8px">План пишите вручную, факт подтянется из трат по категории. Переименовали категорию — суммы переезжают сразу.</span>';
+ h+='</div>';
  return h;
 }
 function setCell(mi,key,i,f,v){S.months[mi][key][i][f]=v;save();}
@@ -395,7 +453,7 @@ function setCrNum(mi,i,f,v){S.months[mi].credits[i][f]=parseFloat(String(v).repl
 function addCr(mi){S.months[mi].credits.push({name:'Новый банк',pay:0,paid:0,debtStart:0});save();finBody();}
 function delCr(mi,i){S.months[mi].credits.splice(i,1);save();finBody();}
 function addMonth(){
- const nm=prompt('Название нового месяца:','Новый месяц');if(nm==null)return;
+ const nm=prompt('Название нового месяца (стандартное — тогда траты лягут на него, например «Декабрь»):','Новый месяц');if(nm==null)return;
  const m=JSON.parse(JSON.stringify(S.months[S.months.length-1]));
  m.name=nm||'Новый месяц';
  m.credits.forEach(c=>{c.debtStart=Math.max(0,(c.debtStart||0)-(c.paid||0));c.paid=0;});
@@ -407,7 +465,7 @@ function delMonth(){
  if(!confirm('Удалить месяц «'+S.months[S.finM].name+'»?'))return;
  S.months.splice(S.finM,1);S.finM=Math.min(S.finM,S.months.length-1);save();finRender();
 }
-const CATS=['Еда','Продукты','Транспорт','Кафе','Хозяйство','Здоровье','Прочее'];
+const CATS=['Продукты','Еда','Транспорт','Кафе','Хозяйство','Здоровье','Прочее'];
 function finEx(m,box){
  const list=dayExpList(m);
  let h='<div class="card"><b>Добавить трату</b><div class="frow">';
@@ -416,14 +474,15 @@ function finEx(m,box){
  h+='<input class="f" list="catl" id="ex-c" placeholder="Категория" style="width:140px">';
  h+='<datalist id="catl">'+CATS.map(c=>'<option>'+c+'</option>').join('')+'</datalist>';
  h+='<input class="f" id="ex-n" placeholder="Комментарий" style="flex:1;min-width:160px">';
- h+='<button class="btn" onclick="addExp()">Добавить</button></div></div>';
+ h+='<button class="btn" onclick="addExp()">Добавить</button></div>';
+ h+='<div class="small" style="margin-top:8px">Категория должна совпадать со строкой в «Переменных расходах» (например, «Продукты») — тогда сумма уйдёт в её «Факт». Категорию пишите одинаково каждый раз, регистр не важен.</div></div>';
  h+='<div class="card"><b>Траты за '+esc(m.name.toLowerCase())+'</b> <span class="small">— всего '+fmt(sum(list,x=>x.sum))+' ₽</span>';
  if(!list.length)h+='<div class="small" style="margin-top:8px">Трат пока нет.</div>';
  else{
   h+='<table class="t" style="margin-top:8px"><tr><th style="width:110px">Дата</th><th class="r" style="width:100px">Сумма</th><th style="width:120px">Категория</th><th>Комментарий</th><th class="r" style="width:30px"></th></tr>';
   list.forEach(x=>{
    const gi=S.expenses.indexOf(x);
-   h+='<tr><td>'+esc(x.d)+'</td><td class="num">'+fmt(x.sum)+' ₽</td><td>'+esc(x.cat||'')+'</td><td><input class="cell" value="'+esc(x.note||'')+'" oninput="S.expenses['+gi+'].note=this.value;save()"></td><td class="r"><button class="del" onclick="delExp('+gi+')">✕</button></td></tr>';
+   h+='<tr><td>'+esc(x.d)+'</td><td class="num">'+fmt(x.sum)+' ₽</td><td><input class="cell" value="'+esc(x.cat||'')+'" oninput="S.expenses['+gi+'].cat=this.value;save()" onchange="finBody()"></td><td><input class="cell" value="'+esc(x.note||'')+'" oninput="S.expenses['+gi+'].note=this.value;save()"></td><td class="r"><button class="del" onclick="delExp('+gi+')">✕</button></td></tr>';
   });
   h+='</table>';
  }
@@ -441,7 +500,7 @@ function delExp(i){S.expenses.splice(i,1);save();finBody();}
 /* ===== графики ===== */
 const PIE_COLORS=['#f97316','#fb923c','#10b981','#3b82f6','#a855f7','#ef4444','#eab308','#14b8a6'];
 function finCh(m,box){
- let h='<div class="card"><b>Баланс по месяцам (доход − расход − траты)</b><canvas id="chBars" width="900" height="280"></canvas></div>';
+ let h='<div class="card"><b>Баланс по месяцам (доход − расход)</b><canvas id="chBars" width="900" height="280"></canvas></div>';
  h+='<div class="card"><b>Траты по категориям — '+esc(m.name)+'</b><canvas id="chPie" width="900" height="300"></canvas></div>';
  box.innerHTML=h;
  drawBars();
@@ -451,7 +510,7 @@ function drawBars(){
  const c=$('#chBars');if(!c)return;
  const ctx=c.getContext('2d');
  ctx.clearRect(0,0,c.width,c.height);
- const data=S.months.map(mm=>monthFact(mm,'income')-monthFact(mm,'expFix')-monthFact(mm,'expVar')-dayExpSum(mm));
+ const data=S.months.map(mm=>monthFact(mm,'income')-monthFact(mm,'expFix')-varFactSum(mm));
  const mx=Math.max.apply(null,data.map(x=>Math.abs(x)).concat([1]));
  const W=c.width,H=c.height,pad=40,bw=(W-pad*2)/data.length*0.55;
  ctx.strokeStyle='#2a3441';ctx.beginPath();ctx.moveTo(pad,H/2);ctx.lineTo(W-pad,H/2);ctx.stroke();
@@ -470,9 +529,7 @@ function drawPie(m){
  const ctx=c.getContext('2d');
  ctx.clearRect(0,0,c.width,c.height);
  const byCat={};
- dayExpList(m).forEach(x=>{
-  const k=x.cat||'Прочее';byCat[k]=(byCat[k]||0)+x.sum;
- });
+ dayExpList(m).forEach(x=>{const k=x.cat||'Прочее';byCat[k]=(byCat[k]||0)+x.sum;});
  const items=Object.keys(byCat).map(k=>({k:k,v:byCat[k]})).sort((a,b)=>b.v-a.v);
  if(!items.length){ctx.fillStyle='#8b95a3';ctx.font='14px Arial';ctx.fillText('Трат за месяц пока нет',40,150);return;}
  const tot=sum(items,x=>x.v),cx=180,cy=150,r=110;
