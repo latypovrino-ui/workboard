@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v14</title>
+<title>Мой дашборд v15</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -97,7 +97,7 @@ function mkRow(name,plan,fact){return{name:name||'',plan:plan||0,fact:fact||0};}
 function mkMonth(name){
  return {name:name,
   income:[mkRow('Зарплата',80000,0),mkRow('Фриланс',10000,0)],
-  expFix:[mkRow('Аренда',20000,0),mkRow('Кредиты',0,0),mkRow('Связь',1000,0)],
+  expFix:[],
   expVar:[mkRow('Продукты',10000,0),mkRow('Транспорт',3000,0),mkRow('Кафе',5000,0)],
   sav:[mkRow('Подушка',10000,0)],
   credits:[
@@ -160,6 +160,7 @@ function repair(){
  S.expenses.forEach(x=>{x.id=x.id||nextId();x.sum=+x.sum||0;});
  S.habits.forEach(x=>{x.id=x.id||Date.now();x.marks=x.marks||{};});
  if(S.finTab==null)S.finTab='ov';
+ if(S.finTab==='fix')S.finTab='ov';
  if(S.finM==null||!S.months[S.finM])S.finM=S.months.length-1;
  if(!S.habM||!/^\d{4}-\d{2}$/.test(S.habM))S.habM=isoOf(new Date()).slice(0,7);
 }
@@ -221,7 +222,7 @@ async function ghPull(){
   if(!f){alert('В хранилище нет файла с данными.');return;}
   const d=JSON.parse(f.content);
   if(!d||!d.months)throw new Error('структура не похожа на данные дашборда');
-  S=d;save();repair();location.reload();
+  S=d;repair();save();location.reload();
  }catch(e){errShow('GitHub',e);}
 }
 function go(p){
@@ -248,12 +249,14 @@ function dayExpList(m){
 function dayExpSum(m){return sum(dayExpList(m),x=>x.sum);}
 function rHome(){
  const m=S.months[S.finM];
- const inc=monthFact(m,'income'),exp=monthFact(m,'expFix')+dayExpSum(m);
+ const inc=monthFact(m,'income');
+ const fixPay=sum(m.credits,c=>c.pay||0);
+ const exp=fixPay+dayExpSum(m);
  const allT=['work','biz','pers'].reduce((n,p)=>n+S.tasks[p].filter(t=>!t.done).length,0);
  let h='<h1>Главная</h1><div class="cards">';
- h+='<div class="kpi"><div class="lbl">Деньги ('+esc(m.name)+')</div><div class="val">'+fmt(inc-exp)+' ₽</div><div class="sub">доход − расход</div></div>';
+ h+='<div class="kpi"><div class="lbl">Деньги ('+esc(m.name)+')</div><div class="val">'+fmt(inc-exp)+' ₽</div><div class="sub">доход − обязательные платежи − траты</div></div>';
  h+='<div class="kpi"><div class="lbl">Доходы</div><div class="val">'+fmt(inc)+' ₽</div></div>';
- h+='<div class="kpi"><div class="lbl">Расходы</div><div class="val">'+fmt(exp)+' ₽</div><div class="sub">включая ежедневные траты</div></div>';
+ h+='<div class="kpi"><div class="lbl">Расходы</div><div class="val">'+fmt(exp)+' ₽</div><div class="sub">платежи + ежедневные траты</div></div>';
  h+='<div class="kpi"><div class="lbl">Незавершённых задач</div><div class="val">'+allT+'</div></div></div>';
  h+='<div class="card"><b>Привычки сегодня</b><div id="habToday" style="margin-top:10px"></div></div>';
  $('#pg-home').innerHTML=h;
@@ -391,7 +394,7 @@ function finRender(){
  h+='<div class="mrow"><button class="btn gray" onclick="mvMonth(-1)">‹</button><span class="mname">'+esc(m.name)+'</span><button class="btn gray" onclick="mvMonth(1)">›</button>';
  h+='<select class="f" onchange="pickMonth(this.value)">'+S.months.map((x,i)=>'<option value="'+i+'" '+(i===S.finM?'selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select>';
  h+='<button class="btn" onclick="addMonth()">+ месяц (с переносом)</button><button class="btn red" onclick="delMonth()">Удалить месяц</button></div>';
- h+='<div class="tabs">'+[['ov','Обзор'],['cr','Кредиты и долги'],['ex','Ежедневные траты'],['sv','Сбережения'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
+ h+='<div class="tabs">'+[['ov','Обзор'],['ex','Ежедневные траты'],['sv','Сбережения'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
  h+='<div id="fin-body"></div>';
  $('#pg-fin').innerHTML=h;
  try{finBody();}catch(e){errShow('финансы',e);}
@@ -403,7 +406,6 @@ function finBody(){
  const m=S.months[S.finM],box=$('#fin-body');
  try{syncVarCats(m);}catch(e){}
  if(S.finTab==='ov')finOv(m,box);
- else if(S.finTab==='cr')finCr(m,box);
  else if(S.finTab==='ex')finEx(m,box);
  else if(S.finTab==='sv')finSv(m,box);
  else finCh(m,box);
@@ -436,21 +438,44 @@ function varFactSum(m){
  });
  return matched+leftover;
 }
+function crTotal(m){
+ return sum(m.credits,c=>c.pay||0);
+}
 function finOv(m,box){
- const inc=monthFact(m,'income'),fix=monthFact(m,'expFix'),vr=varFactSum(m),sav=monthFact(m,'sav');
- const pInc=sum(m.income,r=>r.plan),pExp=sum(m.expFix,r=>r.plan)+sum(m.expVar,r=>r.plan),pSav=sum(m.sav,r=>r.plan);
+ const inc=monthFact(m,'income'),fixPay=crTotal(m),vr=varFactSum(m),sav=monthFact(m,'sav');
+ const pInc=sum(m.income,r=>r.plan),pSav=sum(m.sav,r=>r.plan);
  let h='<div class="cards">';
- h+=kpi('Деньги',inc-fix-vr,'доход − расход');
+ h+=kpi('Деньги',inc-fixPay-vr,'доход − платежи − траты');
  h+=kpi('Доходы',inc,'план '+fmt(pInc)+' ₽');
- h+=kpi('Расходы',fix+vr,'план '+fmt(pExp)+' ₽');
+ h+=kpi('Обязательные платежи',fixPay,'сумма платежей по кредитам');
  h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории — категории из трат добавляются в таблицу сами. Полная таблица сбережений — на вкладке «Сбережения», здесь — сводка и быстрое редактирование.</span></div>';
+ h+='<div class="card"><span class="small">Обязательные платежи — это ваши кредиты. Платёж пишется один раз в месяц, «Оплачено» — сколько уже внесли в этом месяце. Остаток долга переносится на следующий месяц автоматически.</span></div>';
+ h+=crHTML(m);
  h+=tableHTML(m,S.finM,'income','Доходы');
- h+=tableHTML(m,S.finM,'expFix','Обязательные расходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
  h+=tableHTML(m,S.finM,'sav','Сбережения');
  box.innerHTML=h;
+}
+/* таблица кредитов — используется в Обзоре как «Обязательные платежи» */
+function crHTML(m){
+ let h='<div class="card"><b>Обязательные платежи (кредиты)</b><table class="t"><tr><th>Банк</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
+ m.credits.forEach((c,i)=>{
+  const rest=Math.max(0,(c.debtStart||0)-(c.paid||0));
+  h+='<tr><td><input class="cell" value="'+esc(c.name)+'" oninput="setCr('+S.finM+','+i+',\'name\',this.value)"></td>';
+  h+='<td><input class="cell num" value="'+(c.pay||0)+'" onchange="setCrNum('+S.finM+','+i+',\'pay\',this.value)"></td>';
+  h+='<td><input class="cell num" value="'+(c.paid||0)+'" onchange="setCrNum('+S.finM+','+i+',\'paid\',this.value)"></td>';
+  h+='<td><input class="cell num" value="'+(c.debtStart||0)+'" onchange="setCrNum('+S.finM+','+i+',\'debtStart\',this.value)"></td>';
+  h+='<td class="num"><b>'+fmt(rest)+'</b></td>';
+  h+='<td class="r"><button class="del" onclick="delCr('+S.finM+','+i+')">✕</button></td></tr>';
+ });
+ const tot=f=>sum(m.credits,c=>c[f]||0);
+ const totRest=sum(m.credits,c=>Math.max(0,(c.debtStart||0)-(c.paid||0)));
+ h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(tot('pay'))+'</td><td class="num">'+fmt(tot('paid'))+'</td><td class="num">'+fmt(tot('debtStart'))+'</td><td class="num">'+fmt(totRest)+'</td><td></td></tr>';
+ h+='</table><button class="btn" onclick="addCr('+S.finM+')">+ добавить кредит</button>';
+ if(!m.credits.length)h+='<div class="small" style="margin-top:8px">Кредитов пока нет — добавьте первый кнопкой выше.</div>';
+ h+='</div>';
+ return h;
 }
 /* поля обновляют данные без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
 function tableHTML(m,mi,key,title){
@@ -482,14 +507,8 @@ function tableHTML(m,mi,key,title){
   h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(rows,r=>r.plan))+'</td><td class="num">'+fmt(sum(rows,r=>r.fact))+'</td><td class="num">'+fmt(sum(rows,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
  }
  h+='</table><button class="btn" onclick="addRow('+mi+',\''+key+'\')">+ добавить строку</button>';
- if(key==='expFix'&&!rows.length)h+='<button class="btn gray" onclick="addFixDefaults('+mi+')">вернуть стандартные строки (Аренда, Кредиты, Связь)</button>';
- if(isVar)h+='<span class="small" style="margin-left:8px">План пишите вручную, факт подтягивается из трат по категории.</span>';
  h+='</div>';
  return h;
-}
-function addFixDefaults(mi){
- ['Аренда','Кредиты','Связь'].forEach(n=>S.months[mi].expFix.push(mkRow(n,0,0)));
- save();finBody();
 }
 function setCell(mi,key,i,f,v){S.months[mi][key][i][f]=v;save();}
 function setCellNum(mi,key,i,f,v){S.months[mi][key][i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
@@ -508,39 +527,14 @@ function finSv(m,box){
  });
  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(m.sav,r=>r.plan))+'</td><td class="num">'+fmt(sum(m.sav,r=>r.fact))+'</td><td class="num">'+fmt(sum(m.sav,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
  h+='</table><button class="btn" onclick="addSav('+S.finM+')">+ добавить цель</button>';
- if(!m.sav.length)h+='<button class="btn gray" onclick="addSavDef('+S.finM+')">вернуть пример «Подушка»</button>';
  h+='<div class="small" style="margin-top:8px">Введите сумму в «Внесено» и щёлкните в другое место — итог и обзор пересчитаются.</div></div>';
  box.innerHTML=h;
 }
 function setSav(mi,i,f,v){S.months[mi].sav[i][f]=v;save();}
 function setSavNum(mi,i,f,v){S.months[mi].sav[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addSav(mi){S.months[mi].sav.push(mkRow('Новая цель',0,0));save();finBody();}
-function addSavDef(mi){S.months[mi].sav.push(mkRow('Подушка',10000,0));save();finBody();}
 function delSav(mi,i){S.months[mi].sav.splice(i,1);save();finBody();}
-/* ===== кредиты и долги ===== */
-function finCr(m,box){
- let h='<div class="card"><b>Кредиты и долги</b><table class="t"><tr><th>Банк</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
- m.credits.forEach((c,i)=>{
-  const rest=Math.max(0,(c.debtStart||0)-(c.paid||0));
-  h+='<tr><td><input class="cell" value="'+esc(c.name)+'" oninput="setCr('+S.finM+','+i+',\'name\',this.value)"></td>';
-  h+='<td><input class="cell num" value="'+(c.pay||0)+'" onchange="setCrNum('+S.finM+','+i+',\'pay\',this.value)"></td>';
-  h+='<td><input class="cell num" value="'+(c.paid||0)+'" onchange="setCrNum('+S.finM+','+i+',\'paid\',this.value)"></td>';
-  h+='<td><input class="cell num" value="'+(c.debtStart||0)+'" onchange="setCrNum('+S.finM+','+i+',\'debtStart\',this.value)"></td>';
-  h+='<td class="num"><b>'+fmt(rest)+'</b></td>';
-  h+='<td class="r"><button class="del" onclick="delCr('+S.finM+','+i+')">✕</button></td></tr>';
- });
- const tot=f=>sum(m.credits,c=>c[f]||0);
- h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(tot('pay'))+'</td><td class="num">'+fmt(tot('paid'))+'</td><td class="num">'+fmt(tot('debtStart'))+'</td><td class="num">'+fmt(sum(m.credits,c=>Math.max(0,(c.debtStart||0)-(c.paid||0))))+'</td><td></td></tr>';
- h+='</table><button class="btn" onclick="addCr('+S.finM+')">+ добавить кредит</button>';
- if(!m.credits.length)h+='<button class="btn gray" onclick="restoreCredits('+S.finM+')">вернуть примеры кредитов</button>';
- h+='<div class="small" style="margin-top:8px">Остаток = долг на начало − оплачено. При переносе месяца остаток становится новым долгом.</div></div>';
- box.innerHTML=h;
-}
-function restoreCredits(mi){
- S.months[mi].credits.push({name:'Т-кредитка',pay:30000,paid:0,debtStart:69493});
- S.months[mi].credits.push({name:'Пример банка',pay:5000,paid:0,debtStart:120000});
- save();finBody();
-}
+/* ===== платежи по кредитам ===== */
 function setCr(mi,i,f,v){S.months[mi].credits[i][f]=v;save();}
 function setCrNum(mi,i,f,v){S.months[mi].credits[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addCr(mi){S.months[mi].credits.push({name:'Новый банк',pay:0,paid:0,debtStart:0});save();finBody();}
@@ -593,7 +587,7 @@ function delExp(i){S.expenses.splice(i,1);save();finBody();}
 /* ===== графики ===== */
 const PIE_COLORS=['#f97316','#fb923c','#10b981','#3b82f6','#a855f7','#ef4444','#eab308','#14b8a6'];
 function finCh(m,box){
- let h='<div class="card"><b>Баланс по месяцам (доход − расход)</b><canvas id="chBars" width="900" height="280"></canvas></div>';
+ let h='<div class="card"><b>Баланс по месяцам (доход − платежи − траты)</b><canvas id="chBars" width="900" height="280"></canvas></div>';
  h+='<div class="card"><b>Траты по категориям — '+esc(m.name)+'</b><canvas id="chPie" width="900" height="300"></canvas></div>';
  box.innerHTML=h;
  drawBars();
@@ -603,7 +597,7 @@ function drawBars(){
  const c=$('#chBars');if(!c)return;
  const ctx=c.getContext('2d');
  ctx.clearRect(0,0,c.width,c.height);
- const data=S.months.map(mm=>monthFact(mm,'income')-monthFact(mm,'expFix')-varFactSum(mm));
+ const data=S.months.map(mm=>monthFact(mm,'income')-crTotal(mm)-varFactSum(mm));
  const mx=Math.max.apply(null,data.map(x=>Math.abs(x)).concat([1]));
  const W=c.width,H=c.height,pad=40,bw=(W-pad*2)/data.length*0.55;
  ctx.strokeStyle='#2a3441';ctx.beginPath();ctx.moveTo(pad,H/2);ctx.lineTo(W-pad,H/2);ctx.stroke();
