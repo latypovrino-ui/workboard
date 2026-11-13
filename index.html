@@ -358,24 +358,37 @@ function pickMonth(i){S.finM=+i;save();finRender();}
 function finSub(t){S.finTab=t;save();finRender();}
 function finBody(){
  const m=S.months[S.finM],box=$('#fin-body');
+ try{syncVarCats(m);}catch(e){}
  if(S.finTab==='ov')finOv(m,box);
  else if(S.finTab==='cr')finCr(m,box);
  else if(S.finTab==='ex')finEx(m,box);
  else finCh(m,box);
 }
+/* категории из ежедневных трат автоматически становятся строками переменных расходов */
+function syncVarCats(m){
+ const have=m.expVar.map(r=>(r.name||'').trim().toLowerCase());
+ let ch=false;
+ dayExpList(m).forEach(x=>{
+  const c=(x.cat||'').trim();
+  if(c&&have.indexOf(c.toLowerCase())<0){
+   m.expVar.push(mkRow(c,0,0));
+   have.push(c.toLowerCase());
+   ch=true;
+  }
+ });
+ if(ch)save();
+}
 function kpi(lbl,val,sub2){return '<div class="kpi"><div class="lbl">'+lbl+'</div><div class="val">'+fmt(val)+' ₽</div>'+(sub2?'<div class="sub">'+sub2+'</div>':'')+'</div>';}
-/* сумма ежедневных трат, попавших в конкретную категорию таблицы */
 function catExpSum(m,catName){
  const c=(catName||'').trim().toLowerCase();
  return sum(dayExpList(m),x=>((x.cat||'').trim().toLowerCase()===c)?x.sum:0);
 }
 function varFactSum(m){
- /* факт переменных расходов: строки без категории-двойника считают свой факт, двойники берут из трат */
  let matched=0;
  m.expVar.forEach(r=>{matched+=catExpSum(m,r.name);});
  const leftover=sum(dayExpList(m),x=>{
   const c=(x.cat||'').trim().toLowerCase();
-  return c&&m.expVar.some(r=>r.name.trim().toLowerCase()===c)?0:x.sum;
+  return c&&m.expVar.some(r=>(r.name||'').trim().toLowerCase()===c)?0:x.sum;
  });
  return matched+leftover;
 }
@@ -388,7 +401,7 @@ function finOv(m,box){
  h+=kpi('Расходы',fix+vr,'план '+fmt(pExp)+' ₽');
  h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Как это работает: факт «Переменных расходов» складывается из <b>ежедневных трат по категориям</b>. Задайте категориям план в таблице ниже (например, Продукты — 10000), а дальше просто добавляйте траты на вкладке «Ежедневные траты» — суммы с совпадающей категорией подтянутся в «Факт» сами. Траты с категорией, которой нет в таблице, попадут в строку «Прочее».</span></div>';
+ h+='<div class="card"><span class="small">Как это работает: в «Переменных расходах» план пишете вручную, а «Факт» считается из ежедневных трат по категории. Категории из ваших трат добавляются в таблицу автоматически. Траты без категории попадают в строку «Прочее».</span></div>';
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expFix','Обязательные расходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
@@ -415,7 +428,7 @@ function tableHTML(m,mi,key,title){
  if(isVar){
   const rest=sum(dayExpList(m),x=>{
    const c=(x.cat||'').trim().toLowerCase();
-   return c&&rows.some(r=>r.name.trim().toLowerCase()===c)?0:x.sum;
+   return c&&rows.some(r=>(r.name||'').trim().toLowerCase()===c)?0:x.sum;
   });
   if(rest>0)h+='<tr><td><span class="small">Прочее (категории нет в таблице)</span></td><td></td><td class="num">'+fmt(rest)+'</td><td class="num" style="color:#f87171">−'+fmt(rest)+'</td><td></td></tr>';
   const totF=varFactSum(m);
@@ -424,9 +437,14 @@ function tableHTML(m,mi,key,title){
   h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(rows,r=>r.plan))+'</td><td class="num">'+fmt(sum(rows,r=>r.fact))+'</td><td class="num">'+fmt(sum(rows,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
  }
  h+='</table><button class="btn" onclick="addRow('+mi+',\''+key+'\')">+ добавить строку</button>';
- if(isVar)h+='<span class="small" style="margin-left:8px">План пишите вручную, факт подтянется из трат по категории. Переименовали категорию — суммы переезжают сразу.</span>';
+ if(key==='expFix'&&!rows.length)h+='<button class="btn gray" onclick="addFixDefaults('+mi+')">вернуть стандартные строки (Аренда, Кредиты, Связь)</button>';
+ if(isVar)h+='<span class="small" style="margin-left:8px">План пишите вручную, факт подтягивается из трат по категории.</span>';
  h+='</div>';
  return h;
+}
+function addFixDefaults(mi){
+ ['Аренда','Кредиты','Связь'].forEach(n=>S.months[mi].expFix.push(mkRow(n,0,0)));
+ save();finBody();
 }
 function setCell(mi,key,i,f,v){S.months[mi][key][i][f]=v;save();}
 function setCellNum(mi,key,i,f,v){S.months[mi][key][i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
@@ -475,7 +493,7 @@ function finEx(m,box){
  h+='<datalist id="catl">'+CATS.map(c=>'<option>'+c+'</option>').join('')+'</datalist>';
  h+='<input class="f" id="ex-n" placeholder="Комментарий" style="flex:1;min-width:160px">';
  h+='<button class="btn" onclick="addExp()">Добавить</button></div>';
- h+='<div class="small" style="margin-top:8px">Категория должна совпадать со строкой в «Переменных расходах» (например, «Продукты») — тогда сумма уйдёт в её «Факт». Категорию пишите одинаково каждый раз, регистр не важен.</div></div>';
+ h+='<div class="small" style="margin-top:8px">Категория автоматически станет строкой в «Переменных расходах». Для совпадения пишите её одинаково каждый раз, регистр не важен.</div></div>';
  h+='<div class="card"><b>Траты за '+esc(m.name.toLowerCase())+'</b> <span class="small">— всего '+fmt(sum(list,x=>x.sum))+' ₽</span>';
  if(!list.length)h+='<div class="small" style="margin-top:8px">Трат пока нет.</div>';
  else{
