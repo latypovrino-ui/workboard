@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v16</title>
+<title>Мой дашборд v17</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -41,8 +41,6 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 .hd{width:34px;height:34px;border-radius:50%;border:2px solid #2a3441;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;user-select:none;background:#141a23;color:#e7ebf0}
 .hhead{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
 .dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
-.grow{display:flex;align-items:center;height:30px;border-bottom:1px solid #1c242f}
-.glabel{width:150px;font-size:13px;flex-shrink:0;padding-right:8px}
 .gtrack{position:relative;flex:1;height:14px;background:#1c242f;border-radius:7px}
 .gbar{position:absolute;top:0;height:14px;border-radius:7px;background:linear-gradient(90deg,#f97316,#fb923c)}
 .ghdr{display:flex;margin-left:150px;font-size:11px;color:#8b95a3}
@@ -51,9 +49,8 @@ table.t{width:100%;border-collapse:collapse;font-size:14px}
 input.f,select.f{padding:7px 9px;border:1px solid #2a3441;border-radius:8px;font:inherit;background:#141a23;color:#e7ebf0}
 input.f::placeholder{color:#5b6472}
 select.f option{background:#141a23}
-.frow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
 input[type=checkbox].chk{width:16px;height:16px;cursor:pointer;accent-color:#f97316}
-input[type=range]{accent-color:#f97316}
 input[type=date],input[type=month]{color-scheme:dark}
 canvas{max-width:100%}
 .small{font-size:13px;color:#8b95a3}
@@ -94,6 +91,7 @@ function nextId(){return 'e'+(++_eid)+'_'+Math.floor(Math.random()*9999);}
 function nextTid(){return 't'+(++_tid)+'_'+Math.floor(Math.random()*9999);}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 function mkRow(name,plan,fact){return{name:name||'',plan:plan||0,fact:fact||0};}
+function mkTask(name,proj,pr,due,start,done){return{id:nextTid(),name:name,done:!!done,due:due||'',start:start||'',pr:pr||'Средний',proj:proj||'',sub:[],comment:'',doneAt:'',_open:false};}
 function mkMonth(name){
  return {name:name,
   income:[mkRow('Зарплата',80000,0),mkRow('Фриланс',10000,0)],
@@ -110,14 +108,14 @@ function defaults(){
   sec:{work:'proj',biz:'proj',pers:'proj'},
   finTab:'ov',finM:2,habM:null,
   projects:{
-   work:[{name:'Отчёт за квартал',prog:40,start:'2026-10',end:'2026-12'}],
-   biz:[{name:'Продажи',prog:20,start:'2026-09',end:'2026-12'}],
-   pers:[{name:'Ремонт',prog:60,start:'2026-08',end:'2026-11'}]
+   work:[{name:'Отчёт за квартал',prog:0,start:'2026-10-01',end:'2026-12-31'}],
+   biz:[{name:'Продажи',prog:0,start:'2026-09-01',end:'2026-12-31'}],
+   pers:[{name:'Ремонт',prog:0,start:'2026-08-15',end:'2026-11-30'}]
   },
   tasks:{
-   work:[{id:nextTid(),name:'Созвон с командой',done:false,due:'2026-11-10',pr:'Высокий',proj:'Отчёт за квартал'},{id:nextTid(),name:'Подготовить отчёт',done:false,due:'',pr:'Средний',proj:'Отчёт за квартал'}],
-   biz:[{id:nextTid(),name:'Обновить прайс',done:false,due:'',pr:'Средний',proj:'Продажи'}],
-   pers:[{id:nextTid(),name:'Записаться к врачу',done:false,due:'',pr:'Высокий',proj:'Ремонт'}]
+   work:[mkTask('Созвон с командой','Отчёт за квартал','Высокий','2026-11-25','2026-11-18')],
+   biz:[mkTask('Обновить прайс','Продажи','Средний','','2026-11-20')],
+   pers:[mkTask('Записаться к врачу','Ремонт','Высокий','','2026-11-19')]
   },
   months:[mkMonth('Сентябрь'),mkMonth('Октябрь'),mkMonth('Ноябрь')],
   expenses:[],habits:[
@@ -147,11 +145,17 @@ function repair(){
  ['work','biz','pers'].forEach(p=>{
   if(!S.projects)S.projects={};
   if(!Array.isArray(S.projects[p]))S.projects[p]=[];
+  S.projects[p].forEach(x=>{x.prog=+x.prog||0;});
   if(!S.tasks)S.tasks={};
   if(!Array.isArray(S.tasks[p]))S.tasks[p]=[];
   if(!S.sec)S.sec={};
-  if(['proj','task','gantt'].indexOf(S.sec[p])<0)S.sec[p]='proj';
-  S.tasks[p].forEach(x=>{x.id=x.id||nextTid();x.done=!!x.done;x.due=x.due||'';x.pr=x.pr||'Средний';x.proj=x.proj||'';});
+  if(['proj','task','gantt','jour'].indexOf(S.sec[p])<0)S.sec[p]='proj';
+  S.tasks[p].forEach(x=>{
+   x.id=x.id||nextTid();x.done=!!x.done;x.due=x.due||'';x.pr=x.pr||'Средний';x.proj=x.proj||'';
+   x.start=x.start||'';x.comment=x.comment||'';x.doneAt=x.doneAt||'';
+   if(!Array.isArray(x.sub))x.sub=[];
+   x.sub.forEach(s=>{s.id=s.id||nextTid();s.done=!!s.done;s.name=s.name||'';});
+  });
  });
  if(!Array.isArray(S.months)||!S.months.length)S.months=defaults().months;
  S.months.forEach(m=>{['income','expFix','expVar','sav'].forEach(k=>{if(!Array.isArray(m[k]))m[k]=[]});if(!Array.isArray(m.credits))m.credits=[];});
@@ -304,11 +308,13 @@ function toggleHab(id){
  if($('#pg-hab').style.display!=='none')habRender();
 }
 const SECT={work:'Работа',biz:'Бизнес',pers:'Личное'};
+const SUBTAB={proj:'Проекты',task:'Задачи',gantt:'Гант',jour:'Журнал'};
 function rSection(p){
+ const doneN=S.tasks[p].filter(t=>t.done).length;
  let h='<h1>'+SECT[p]+'</h1>';
- h+='<div class="small">проектов: '+S.projects[p].length+' · задач: '+S.tasks[p].length+'</div>';
+ h+='<div class="small">проектов: '+S.projects[p].length+' · задач: '+S.tasks[p].length+' · в журнале: '+doneN+'</div>';
  h+='<div class="tabs">';
- ['proj','task','gantt'].forEach(t=>{h+='<button class="tab'+(S.sec[p]===t?' on':'')+'" onclick="sub(\''+p+'\',\''+t+'\')">'+({proj:'Проекты',task:'Задачи',gantt:'Гант'})[t]+'</button>';});
+ ['proj','task','gantt','jour'].forEach(t=>{h+='<button class="tab'+(S.sec[p]===t?' on':'')+'" onclick="sub(\''+p+'\',\''+t+'\')">'+SUBTAB[t]+'</button>';});
  h+='</div><div id="sec-'+p+'-body"></div>';
  $('#pg-'+p).innerHTML=h;
  try{secBody(p);}catch(e){errShow('раздел '+SECT[p],e);}
@@ -316,102 +322,221 @@ function rSection(p){
 function sub(p,t){S.sec[p]=t;save();rSection(p);}
 function secBody(p){
  const t=S.sec[p],box=$('#sec-'+p+'-body');
- if(t==='proj'){
-  let h='<div class="card"><table class="t"><tr><th>Проект</th><th style="width:130px">Начало</th><th style="width:130px">Конец</th><th style="width:200px">Прогресс</th><th class="r" style="width:30px"></th></tr>';
-  S.projects[p].forEach((x,i)=>{
-   h+='<tr><td><input class="cell" value="'+esc(x.name)+'" oninput="projName(\''+p+'\','+i+',this.value)"></td>';
-   h+='<td><input class="cell" type="month" value="'+(x.start||'')+'" onchange="projDate(\''+p+'\','+i+',\'start\',this.value)"></td>';
-   h+='<td><input class="cell" type="month" value="'+(x.end||'')+'" onchange="projDate(\''+p+'\','+i+',\'end\',this.value)"></td>';
-   h+='<td><input type="range" min="0" max="100" value="'+(x.prog||0)+'" style="width:70%" onchange="projProg(\''+p+'\','+i+',this.value)"><span class="small"> '+(x.prog||0)+'%</span></td>';
-   h+='<td class="r"><button class="del" onclick="delProj(\''+p+'\','+i+')">✕</button></td></tr>';
-  });
-  if(!S.projects[p].length)h+='<tr><td colspan="5" class="small">Проектов пока нет — добавьте первый кнопкой ниже.</td></tr>';
-  h+='</table><button class="btn" onclick="addProj(\''+p+'\')">+ добавить проект</button></div>';
-  box.innerHTML=h;
- }else if(t==='task'){
-  const prj=S.projects[p];
-  let h='<div class="card"><b>Новая задача</b><div class="frow">';
-  h+='<select class="f" id="tk-'+p+'-prj" style="min-width:170px">'+(prj.length?prj.map(x=>'<option>'+esc(x.name)+'</option>').join(''):'<option value="">— нет проектов —</option>')+'</select>';
-  h+='<input class="f" id="tk-'+p+'-name" placeholder="Название задачи" style="flex:1;min-width:160px">';
-  h+='<input class="f" type="date" id="tk-'+p+'-due">';
-  h+='<select class="f" id="tk-'+p+'-pr">'+['Высокий','Средний','Низкий'].map(o=>'<option>'+o+'</option>').join('')+'</select>';
-  h+='<button class="btn" onclick="addTaskTo(\''+p+'\')">+ задача</button></div>';
-  if(!prj.length)h+='<div class="small" style="margin-top:8px">Сначала добавьте проект на вкладке «Проекты» — задача привяжется к нему.</div>';
-  h+='</div>';
-  const groups={},order=[];
-  S.tasks[p].forEach(x=>{
-   const g=(x.proj&&prj.some(q=>q.name===x.proj))?x.proj:'Без проекта';
-   if(!groups[g]){groups[g]=[];order.push(g);}
-   groups[g].push(x);
-  });
-  const sorted=[];prj.forEach(q=>{if(groups[q.name]!==undefined)sorted.push(q.name);});
-  if(groups['Без проекта'])sorted.push('Без проекта');
-  sorted.forEach(g=>{
-   const list=groups[g],act=list.filter(x=>!x.done).length;
-   h+='<div class="card"><b>'+esc(g)+'</b> <span class="small">— активных: '+act+' из '+list.length+'</span>';
-   if(list.length){
-    h+='<table class="t" style="margin-top:8px"><tr><th style="width:30px"></th><th>Задача</th><th style="width:140px">Срок</th><th style="width:110px">Приоритет</th><th class="r" style="width:30px"></th></tr>';
-    list.forEach(x=>{
-     h+='<tr><td><input type="checkbox" class="chk" '+(x.done?'checked':'')+' onchange="taskToggle(\''+p+'\',\''+x.id+'\',this.checked)"></td>';
-     h+='<td style="'+(x.done?'text-decoration:line-through;color:#6b7280':'')+'"><input class="cell" value="'+esc(x.name)+'" oninput="taskName(\''+p+'\',\''+x.id+'\',this.value)"></td>';
-     h+='<td><input class="cell" type="date" value="'+(x.due||'')+'" onchange="taskDue(\''+p+'\',\''+x.id+'\',this.value)"></td>';
-     h+='<td><select class="f" style="width:100%" onchange="taskPr(\''+p+'\',\''+x.id+'\',this.value)">'+['Высокий','Средний','Низкий'].map(o=>'<option '+(x.pr===o?'selected':'')+'>'+o+'</option>').join('')+'</select></td>';
-     h+='<td class="r"><button class="del" onclick="delTask(\''+p+'\',\''+x.id+'\')">✕</button></td></tr>';
-    });
-    h+='</table>';
-   }else h+='<div class="small" style="margin-top:8px">Задач пока нет — добавьте через форму выше.</div>';
-   h+='</div>';
-  });
-  box.innerHTML=h;
- }else{
-  const pr=S.projects[p].filter(x=>x.start&&x.end);
-  let h='<div class="card"><b>Гант — '+SECT[p]+'</b> <button class="btn" onclick="addProj(\''+p+'\')">+ добавить проект</button>';
-  if(!S.projects[p].length)h+='<div class="small" style="margin-top:8px">Проектов пока нет — добавьте первый кнопкой выше.</div>';
-  else if(!pr.length)h+='<div class="small" style="margin-top:8px">Укажите проектам даты начала и конца на вкладке «Проекты» — диаграмма построится сама. Ваши проекты: '+S.projects[p].map(x=>esc(x.name)).join(', ')+'</div>';
-  else{
-   const lo=Math.min.apply(null,pr.map(x=>monthIdx(x.start)));
-   const hi=Math.max.apply(null,pr.map(x=>monthIdx(x.end)));
-   const span=hi-lo+1;
-   h+='<div class="ghdr">'+Array.from({length:span},(_,i)=>'<span>'+MONTHS[(lo+i)%12]+'</span>').join('')+'</div>';
-   pr.forEach(x=>{
-    const a=monthIdx(x.start)-lo,b=monthIdx(x.end)-lo;
-    const L=a/span*100,W=(b-a+1)/span*100;
-    h+='<div class="grow"><div class="glabel">'+esc(x.name)+'</div><div class="gtrack"><div class="gbar" style="left:'+L+'%;width:'+W+'%"></div></div></div>';
-   });
-  }
-  h+='</div>';
-  box.innerHTML=h;
- }
+ if(t==='proj')bodyProj(p,box);
+ else if(t==='task')bodyTask(p,box);
+ else if(t==='jour')bodyJour(p,box);
+ else bodyGantt(p,box);
 }
+/* сколько задач выполнено у проекта — считаем всегда, ползунка больше нет */
+function projDone(p,name){
+ const list=S.tasks[p].filter(x=>x.proj===name);
+ return {total:list.length,done:list.filter(x=>x.done).length};
+}
+function projPct(p,name){
+ const d=projDone(p,name);
+ return d.total?Math.round(d.done/d.total*100):0;
+}
+function bodyProj(p,box){
+ let h='';
+ S.projects[p].forEach((prj,i)=>{
+  const pct=projPct(p,prj.name),d=projDone(p,prj.name);
+  const tl=S.tasks[p].filter(x=>x.proj===prj.name);
+  h+='<div class="card"><div class="hhead"><input class="cell" style="width:auto;flex:1;font-weight:700" value="'+esc(prj.name)+'" oninput="projName(\''+p+'\','+i+',this.value)">';
+  h+='<button class="del" onclick="delProj(\''+p+'\','+i+')">✕ удалить проект</button></div>';
+  h+='<div class="frow"><span class="small">Начало:</span><input class="f" type="date" value="'+(prj.start||'')+'" onchange="projDate(\''+p+'\','+i+',\'start\',this.value)">';
+  h+='<span class="small">Конец:</span><input class="f" type="date" value="'+(prj.end||'')+'" onchange="projDate(\''+p+'\','+i+',\'end\',this.value)"></div>';
+  h+='<div style="margin-top:10px"><div class="gtrack" style="height:18px"><div class="gbar" style="height:18px;width:'+pct+'%"></div></div>';
+  h+='<div class="small" style="margin-top:4px">'+pct+'% — выполнено '+d.done+' из '+d.total+' задач'+(d.total?'':' (задач нет — процент 0)')+'</div></div>';
+  /* задачи прямо под проектом */
+  if(tl.length){
+   h+='<table class="t" style="margin-top:10px"><tr><th style="width:30px"></th><th>Задача</th><th style="width:120px">Начало</th><th style="width:120px">Срок</th><th style="width:110px">Приоритет</th><th class="r" style="width:30px"></th></tr>';
+   tl.forEach(x=>{
+    h+=taskRow(p,x,true);
+   });
+   h+='</table>';
+  }else h+='<div class="small" style="margin-top:8px">Задач у проекта пока нет — добавьте в форме ниже.</div>';
+  h+='<div class="frow"><input class="f" id="tp-'+p+'-'+i+'" placeholder="Название задачи" style="flex:1;min-width:160px">';
+  h+='<input class="f" type="date" id="tp-'+p+'-'+i+'-st">';
+  h+='<input class="f" type="date" id="tp-'+p+'-'+i+'-due">';
+  h+='<button class="btn" onclick="addTaskUnder(\''+p+'\','+i+')">+ задача к проекту</button></div>';
+  h+='</div>';
+ });
+ if(!S.projects[p].length)h='<div class="card"><span class="small">Проектов пока нет — добавьте первый кнопкой ниже.</span></div>';
+ h+='<div class="card"><b>Новый проект</b><div class="frow">';
+ h+='<input class="f" id="np-'+p+'" placeholder="Название" style="flex:1;min-width:180px">';
+ h+='<button class="btn" onclick="addProj(\''+p+'\')">+ добавить проект</button></div></div>';
+ box.innerHTML=h;
+}
+function addTaskUnder(p,i){
+ const n=$('#tp-'+p+'-'+i+'-n')?$('#tp-'+p+'-'+i).value.trim():'';
+ if(!n)return;
+ S.tasks[p].push(mkTask(n,S.projects[p][i].name,'Средний',$('#tp-'+p+'-'+i+'-due')?$('#tp-'+p+'-'+i+'-due').value:'',$('#tp-'+p+'-'+i+'-st')?$('#tp-'+p+'-'+i+'-st').value:''));
+ save();secBody(p);
+}
+function taskRow(p,x,compact){
+ const open=!!x._open;
+ let h='<tr><td><input type="checkbox" class="chk" '+(x.done?'checked':'')+' onchange="askDone(\''+p+'\',\''+x.id+'\',this.checked)"></td>';
+ h+='<td style="'+(x.done?'text-decoration:line-through;color:#6b7280':'')+'"><input class="cell" value="'+esc(x.name)+'" oninput="taskName(\''+p+'\',\''+x.id+'\',this.value)">';
+ h+='<button class="tab" style="padding:2px 8px;font-size:12px;margin-left:6px" onclick="toggleOpen(\''+p+'\',\''+x.id+'\')">'+(open?'▲ подзадачи ':'▼ подзадачи '+(x.sub?x.sub.length:'')+(x.sub&&x.sub.length?' ('+x.sub.filter(s=>s.done).length+'/'+x.sub.length+')':''))+'</button></td>';
+ h+='<td><input class="cell" type="date" value="'+(x.start||'')+'" onchange="taskStart(\''+p+'\',\''+x.id+'\',this.value)"></td>';
+ h+='<td><input class="cell" type="date" value="'+(x.due||'')+'" onchange="taskDue(\''+p+'\',\''+x.id+'\',this.value)"></td>';
+ h+='<td><select class="f" style="width:100%" onchange="taskPr(\''+p+'\',\''+x.id+'\',this.value)">'+['Высокий','Средний','Низкий'].map(o=>'<option '+(x.pr===o?'selected':'')+'>'+o+'</option>').join('')+'</select></td>';
+ h+='<td class="r"><button class="del" onclick="delTask(\''+p+'\',\''+x.id+'\')">✕</button></td></tr>';
+ if(open){
+  h+='<tr><td></td><td colspan="5"><div style="margin:4px 0">';
+  (x.sub||[]).forEach((s,si)=>{
+   h+='<div style="display:flex;align-items:center;gap:8px;margin:4px 0;margin-left:18px">';
+   h+='<input type="checkbox" class="chk" '+(s.done?'checked':'')+' onchange="subToggle(\''+p+'\',\''+x.id+'\','+si+',this.checked)">';
+   h+='<input class="cell" style="flex:1'+(s.done?';text-decoration:line-through;color:#6b7280':'')+'" value="'+esc(s.name)+'" oninput="subName(\''+p+'\',\''+x.id+'\','+si+',this.value)">';
+   h+='<button class="del" onclick="subDel(\''+p+'\',\''+x.id+'\','+si+')">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:8px;margin:6px 0 2px 18px">';
+  h+='<input class="f" id="sb-'+x.id+'" placeholder="Новая подзадача" style="flex:1" onkeydown="if(event.key===\'Enter\')subAdd(\''+p+'\',\''+x.id+'\')">';
+  h+='<button class="btn" onclick="subAdd(\''+p+'\',\''+x.id+'\')">+ подзадача</button></div></div></td></tr>';
+ }
+ return h;
+}
+function toggleOpen(p,id){
+ const x=findTask(p,id);if(!x)return;
+ x._open=!x._open;save();secBody(p);
+}
+/* закрытие задачи: без комментария не закрывается */
+function askDone(p,id,v){
+ const x=findTask(p,id);if(!x)return;
+ if(!v){
+  if(x.done){
+   x.done=false;x.doneAt='';x.comment='';
+   save();secBody(p);
+  }
+  return;
+ }
+ const c=(prompt('Комментарий о выполнении — без него задача не закроется:','')||'').trim();
+ if(!c){
+  alert('Нужен комментарий — задача осталась открытой.');
+  secBody(p);
+  return;
+ }
+ x.done=true;x.comment=c;x.doneAt=isoOf(new Date());
+ save();secBody(p);
+}
+function subAdd(p,id){
+ const x=findTask(p,id);if(!x)return;
+ const n=$('#sb-'+id)?$('#sb-'+id).value.trim():'';
+ if(!n)return;
+ x.sub.push({id:nextTid(),name:n,done:false});
+ save();secBody(p);
+}
+function subName(p,id,si,v){const x=findTask(p,id);if(x&&x.sub[si]){x.sub[si].name=v;save();}}
+function subToggle(p,id,si,v){
+ const x=findTask(p,id);if(x&&x.sub[si]){x.sub[si].done=v;save();secBody(p);}
+}
+function subDel(p,id,si){const x=findTask(p,id);if(x){x.sub.splice(si,1);save();secBody(p);}}
+function bodyTask(p,box){
+ const prj=S.projects[p];
+ let h='<div class="card"><b>Новая задача</b><div class="frow">';
+ h+='<select class="f" id="tk-'+p+'-prj" style="min-width:170px">'+(prj.length?prj.map(x=>'<option>'+esc(x.name)+'</option>').join(''):'<option value="">— нет проектов —</option>')+'</select>';
+ h+='<input class="f" id="tk-'+p+'-name" placeholder="Название задачи" style="flex:1;min-width:160px">';
+ h+='<input class="f" type="date" id="tk-'+p+'-st">';
+ h+='<input class="f" type="date" id="tk-'+p+'-due">';
+ h+='<select class="f" id="tk-'+p+'-pr">'+['Высокий','Средний','Низкий'].map(o=>'<option>'+o+'</option>').join('')+'</select>';
+ h+='<button class="btn" onclick="addTaskTo(\''+p+'\')">+ задача</button></div>';
+ if(!prj.length)h+='<div class="small" style="margin-top:8px">Сначала добавьте проект на вкладке «Проекты» — задача привяжется к нему.</div>';
+ h+='</div>';
+ const groups={},order=[];
+ S.tasks[p].forEach(x=>{
+  const g=(x.proj&&prj.some(q=>q.name===x.proj))?x.proj:'Без проекта';
+  if(!groups[g]){groups[g]=[];order.push(g);}
+  groups[g].push(x);
+ });
+ const sorted=[];prj.forEach(q=>{if(groups[q.name]!==undefined)sorted.push(q.name);});
+ if(groups['Без проекта'])sorted.push('Без проекта');
+ sorted.forEach(g=>{
+  const list=groups[g],act=list.filter(x=>!x.done).length;
+  h+='<div class="card"><b>'+esc(g)+'</b> <span class="small">— активных: '+act+' из '+list.length+' · прогресс '+projPct(p,g)+'%</span>';
+  h+='<table class="t" style="margin-top:8px"><tr><th style="width:30px"></th><th>Задача</th><th style="width:120px">Начало</th><th style="width:120px">Срок</th><th style="width:110px">Приоритет</th><th class="r" style="width:30px"></th></tr>';
+  list.forEach(x=>{h+=taskRow(p,x,false);});
+  h+='</table></div>';
+ });
+ box.innerHTML=h;
+}
+function bodyJour(p,box){
+ const list=S.tasks[p].filter(x=>x.done).slice().sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||''));
+ let h='<div class="card"><b>Журнал выполненных задач</b> <span class="small">— '+list.length+'</span>';
+ if(!list.length)h+='<div class="small" style="margin-top:8px">Пока пусто — выполните первую задачу с комментарием, и она появится здесь.</div>';
+ else{
+  h+='<table class="t" style="margin-top:8px"><tr><th>Задача</th><th style="width:140px">Проект</th><th style="width:110px">Завершена</th><th>Комментарий</th><th class="r" style="width:30px"></th></tr>';
+  list.forEach(x=>{
+   const gi=S.tasks[p].indexOf(x);
+   h+='<tr><td>'+esc(x.name)+'</td><td class="small">'+esc(x.proj||'—')+'</td><td class="small">'+esc(x.doneAt||'—')+'</td><td class="small">'+esc(x.comment||'')+'</td><td class="r"><button class="del" title="вернуть в работу" onclick="journalBack(\''+p+'\','+gi+')">↩</button></td></tr>';
+  });
+  h+='</table>';
+ }
+ h+='</div>';
+ box.innerHTML=h;
+}
+function journalBack(p,i){
+ const x=S.tasks[p][i];if(!x)return;
+ if(!confirm('Вернуть задачу «'+x.name+'» в работу? Она исчезнет из журнала.'))return;
+ x.done=false;x.doneAt='';x.comment='';
+ save();secBody(p);
+}
+function bodyGantt(p,box){
+ const pr=S.projects[p].filter(x=>x.start&&x.end);
+ let h='<div class="card"><b>Гант — '+SECT[p]+'</b> <button class="btn" onclick="addProj(\''+p+'\')">+ добавить проект</button>';
+ if(!S.projects[p].length)h+='<div class="small" style="margin-top:8px">Проектов пока нет — добавьте первый кнопкой выше.</div>';
+ else if(!pr.length)h+='<div class="small" style="margin-top:8px">Укажите проектам даты начала и конца на вкладке «Проекты» — диаграмма построится сама. Ваши проекты: '+S.projects[p].map(x=>esc(x.name)).join(', ')+'</div>';
+ else{
+  const lo=Math.min.apply(null,pr.map(x=>dateIdx(x.start)));
+  const hi=Math.max.apply(null,pr.map(x=>dateIdx(x.end)));
+  const span=hi-lo+1;
+  h+='<div class="ghdr">'+Array.from({length:span},(_,i)=>'<span>'+MONTHS[(lo+i)%12]+'</span>').join('')+'</div>';
+  pr.forEach(x=>{
+   const a=dateIdx(x.start)-lo,b=dateIdx(x.end)-lo;
+   const L=a/span*100,W=(b-a+1)/span*100;
+   h+='<div class="grow"><div class="glabel">'+esc(x.name)+'</div><div class="gtrack"><div class="gbar" style="left:'+L+'%;width:'+W+'%"></div></div></div>';
+  });
+ }
+ h+='</div>';
+ box.innerHTML=h;
+}
+function dateIdx(d){const a=d.split('-').map(Number);return a[0]*12+a[1]-1;}
+function monthIdx(ym){const a=String(ym).split('-').map(Number);return a[0]*12+a[1]-1;}
+function ymFromIdx(i){return Math.floor(i/12)+'-'+String(i%12+1).padStart(2,'0');}
 function projName(p,i,v){S.projects[p][i].name=v;save();}
 function projDate(p,i,f,v){S.projects[p][i][f]=v;save();if(S.sec[p]==='gantt')secBody(p);}
 function projProg(p,i,v){S.projects[p][i].prog=+v;save();secBody(p);}
 function addProj(p){
- if(!Array.isArray(S.projects[p]))S.projects[p]=[];
- S.projects[p].push({name:'Новый проект',prog:0,start:'',end:''});
+ const n=$('#np-'+p)?$('#np-'+p).value.trim():'';
+ if(!n)return;
+ S.projects[p].push({name:n,prog:0,start:'',end:''});
  save();secBody(p);
 }
 function delProj(p,i){
+ const nm=S.projects[p][i].name;
+ if(!confirm('Удалить проект «'+nm+'»? Его задачи (включая выполненные) тоже будут удалены.'))return;
  S.projects[p].splice(i,1);
- S.tasks[p].forEach(x=>{if(x.proj&&!S.projects[p].some(q=>q.name===x.proj))x.proj='';});
+ S.tasks[p]=S.tasks[p].filter(x=>x.proj!==nm);
  save();secBody(p);
 }
 function findTask(p,id){return S.tasks[p].find(x=>x.id===id);}
-function taskToggle(p,id,v){const x=findTask(p,id);if(x){x.done=v;save();secBody(p);}}
+function taskToggle(p,id,v){askDone(p,id,v);}
 function taskName(p,id,v){const x=findTask(p,id);if(x){x.name=v;save();}}
+function taskStart(p,id,v){const x=findTask(p,id);if(x){x.start=v;save();}}
 function taskDue(p,id,v){const x=findTask(p,id);if(x){x.due=v;save();}}
 function taskPr(p,id,v){const x=findTask(p,id);if(x){x.pr=v;save();}}
-function delTask(p,id){S.tasks[p]=S.tasks[p].filter(x=>x.id!==id);save();secBody(p);}
+function delTask(p,id){
+ const x=findTask(p,id);if(!x)return;
+ if(!confirm('Удалить задачу «'+x.name+'»?'))return;
+ S.tasks[p]=S.tasks[p].filter(t=>t.id!==id);save();secBody(p);
+}
 function addTaskTo(p){
  if(!Array.isArray(S.tasks[p]))S.tasks[p]=[];
  const prjName=$('#tk-'+p+'-prj')?$('#tk-'+p+'-prj').value:'';
  const n=$('#tk-'+p+'-name')?$('#tk-'+p+'-name').value.trim():'';
  if(!n)return;
- S.tasks[p].push({id:nextTid(),name:n,done:false,due:$('#tk-'+p+'-due')?$('#tk-'+p+'-due').value:'',pr:$('#tk-'+p+'-pr')?$('#tk-'+p+'-pr').value:'Средний',proj:prjName||''});
+ S.tasks[p].push(mkTask(n,prjName||'',$('#tk-'+p+'-pr')?$('#tk-'+p+'-pr').value:'Средний',$('#tk-'+p+'-due')?$('#tk-'+p+'-due').value:'',$('#tk-'+p+'-st')?$('#tk-'+p+'-st').value:''));
  save();secBody(p);
 }
-function monthIdx(ym){const a=ym.split('-').map(Number);return a[0]*12+a[1]-1;}
-function ymFromIdx(i){return Math.floor(i/12)+'-'+String(i%12+1).padStart(2,'0');}
 /* ===== финансы ===== */
 function finRender(){
  const m=S.months[S.finM];
@@ -436,7 +561,6 @@ function finBody(){
  else if(S.finTab==='sv')finSv(m,box);
  else finCh(m,box);
 }
-/* категории из ежедневных трат автоматически становятся строками переменных расходов */
 function syncVarCats(m){
  const have=m.expVar.map(r=>(r.name||'').trim().toLowerCase());
  let ch=false;
@@ -476,14 +600,12 @@ function finOv(m,box){
  h+=kpi('Обязательные платежи',fixPay,'сумма платежей по кредитам');
  h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Обязательные платежи — это ваши кредиты. Платёж пишется один раз в месяц, «Оплачено» — сколько уже внесли в этом месяце. Остаток долга переносится на следующий месяц автоматически. Напоминания о ближайших платежах висят на Главной.</span></div>';
  h+=crHTML(m);
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
  h+=tableHTML(m,S.finM,'sav','Сбережения');
  box.innerHTML=h;
 }
-/* таблица кредитов — используется и в Обзоре, и на вкладке «Кредиты и долги» */
 function crHTML(m){
  let h='<div class="card"><b>Обязательные платежи (кредиты)</b><table class="t"><tr><th>Банк</th><th style="width:80px">Дата</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
  m.credits.forEach((c,i)=>{
@@ -505,9 +627,8 @@ function crHTML(m){
  return h;
 }
 function finCr(m,box){
- box.innerHTML=crHTML(m)+'<div class="card"><span class="small">Здесь те же кредиты, что и в Обзоре. В колонке «Дата» укажите день месяца, когда списывается платёж (например, 20 — значит 20-го числа). За 5 дней до этой даты на Главной появится напоминание: имя кредита, дата и сумма. Если «Оплачено» меньше платежа, напоминание будет висеть и после даты — пока не внесёте всю сумму.</span></div>';
+ box.innerHTML=crHTML(m)+'<div class="card"><span class="small">Здесь те же кредиты, что и в Обзоре. В колонке «Дата» укажите день месяца списания. За 5 дней до этой даты на Главной появится напоминание: имя кредита, дата и сумма.</span></div>';
 }
-/* поля обновляют данные без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
 function tableHTML(m,mi,key,title){
  const isVar=(key==='expVar');
  const rows=m[key];
@@ -544,7 +665,6 @@ function setCell(mi,key,i,f,v){S.months[mi][key][i][f]=v;save();}
 function setCellNum(mi,key,i,f,v){S.months[mi][key][i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addRow(mi,key){S.months[mi][key].push(mkRow('',0,0));save();finBody();}
 function delRow(mi,key,i){S.months[mi][key].splice(i,1);save();finBody();}
-/* ===== вкладка сбережений ===== */
 function finSv(m,box){
  let h='<div class="card"><b>Сбережения — '+esc(m.name)+'</b><table class="t"><tr><th>Название цели</th><th class="r" style="width:110px">План (в месяц)</th><th class="r" style="width:110px">Внесено</th><th class="r" style="width:110px">Осталось внести</th><th class="r" style="width:30px"></th></tr>';
  m.sav.forEach((r,i)=>{
@@ -557,14 +677,13 @@ function finSv(m,box){
  });
  h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(sum(m.sav,r=>r.plan))+'</td><td class="num">'+fmt(sum(m.sav,r=>r.fact))+'</td><td class="num">'+fmt(sum(m.sav,r=>(r.plan||0)-(r.fact||0)))+'</td><td></td></tr>';
  h+='</table><button class="btn" onclick="addSav('+S.finM+')">+ добавить цель</button>';
- h+='<div class="small" style="margin-top:8px">Введите сумму в «Внесено» и щёлкните в другое место — итог и обзор пересчитаются.</div></div>';
+ h+='</div>';
  box.innerHTML=h;
 }
 function setSav(mi,i,f,v){S.months[mi].sav[i][f]=v;save();}
 function setSavNum(mi,i,f,v){S.months[mi].sav[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addSav(mi){S.months[mi].sav.push(mkRow('Новая цель',0,0));save();finBody();}
 function delSav(mi,i){S.months[mi].sav.splice(i,1);save();finBody();}
-/* ===== платежи по кредитам ===== */
 function setCr(mi,i,f,v){S.months[mi].credits[i][f]=v;save();}
 function setCrNum(mi,i,f,v){S.months[mi].credits[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
 function addCr(mi){S.months[mi].credits.push({name:'Новый банк',pay:0,paid:0,debtStart:0,due:0});save();finBody();}
@@ -614,7 +733,6 @@ function addExp(){
  save();finBody();
 }
 function delExp(i){S.expenses.splice(i,1);save();finBody();}
-/* ===== графики ===== */
 const PIE_COLORS=['#f97316','#fb923c','#10b981','#3b82f6','#a855f7','#ef4444','#eab308','#14b8a6'];
 function finCh(m,box){
  let h='<div class="card"><b>Баланс по месяцам (доход − платежи − траты)</b><canvas id="chBars" width="900" height="280"></canvas></div>';
