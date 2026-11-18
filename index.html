@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Мой дашборд v15</title>
+<title>Мой дашборд v16</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#0c1016;color:#e7ebf0}
@@ -101,8 +101,8 @@ function mkMonth(name){
   expVar:[mkRow('Продукты',10000,0),mkRow('Транспорт',3000,0),mkRow('Кафе',5000,0)],
   sav:[mkRow('Подушка',10000,0)],
   credits:[
-   {name:'Т-кредитка',pay:30000,paid:0,debtStart:69493},
-   {name:'Пример банка',pay:5000,paid:0,debtStart:120000}
+   {name:'Т-кредитка',pay:30000,paid:0,debtStart:69493,due:20},
+   {name:'Пример банка',pay:5000,paid:0,debtStart:120000,due:5}
   ]};
 }
 function defaults(){
@@ -159,6 +159,8 @@ function repair(){
  if(!Array.isArray(S.habits))S.habits=[];
  S.expenses.forEach(x=>{x.id=x.id||nextId();x.sum=+x.sum||0;});
  S.habits.forEach(x=>{x.id=x.id||Date.now();x.marks=x.marks||{};});
+ /* даты платежей у кредитов */
+ S.months.forEach(mm=>{if(Array.isArray(mm.credits))mm.credits.forEach(c=>{c.due=+c.due||0;});});
  if(S.finTab==null)S.finTab='ov';
  if(S.finTab==='fix')S.finTab='ov';
  if(S.finM==null||!S.months[S.finM])S.finM=S.months.length-1;
@@ -247,17 +249,40 @@ function dayExpList(m){
  return S.expenses.filter(x=>x.d&&x.d.slice(5,7)===String(mi+1).padStart(2,'0')&&x.d.slice(0,4)===String(yr)).sort((a,b)=>a.d<b.d?-1:1);
 }
 function dayExpSum(m){return sum(dayExpList(m),x=>x.sum);}
+/* напоминания по кредитам: за 5 дней до даты платежа и позже, пока платёж не внесён полностью */
+function crReminders(m){
+ const now=new Date();
+ const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ const MN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+ const out=[];
+ (m.credits||[]).forEach(c=>{
+  const due=+c.due||0;
+  if(!due||!c.pay)return;
+  if((c.paid||0)>=(c.pay||0))return;
+  let d=new Date(now.getFullYear(),now.getMonth(),due);
+  if(d<t0)d=new Date(now.getFullYear(),now.getMonth()+1,due);
+  const days=Math.round((d-t0)/86400000);
+  if(days<=5)out.push({name:c.name,dateStr:d.getDate()+' '+MN[d.getMonth()],pay:c.pay,days:days,over:days<0});
+ });
+ out.sort((a,b)=>a.days-b.days);
+ return out;
+}
 function rHome(){
  const m=S.months[S.finM];
  const inc=monthFact(m,'income');
  const fixPay=sum(m.credits,c=>c.pay||0);
  const exp=fixPay+dayExpSum(m);
  const allT=['work','biz','pers'].reduce((n,p)=>n+S.tasks[p].filter(t=>!t.done).length,0);
+ const rem=crReminders(m);
  let h='<h1>Главная</h1><div class="cards">';
- h+='<div class="kpi"><div class="lbl">Деньги ('+esc(m.name)+')</div><div class="val">'+fmt(inc-exp)+' ₽</div><div class="sub">доход − обязательные платежи − траты</div></div>';
+ h+='<div class="kpi"><div class="lbl">Деньги ('+esc(m.name)+')</div><div class="val">'+fmt(inc-exp)+' ₽</div><div class="sub">доход − платежи − траты</div></div>';
  h+='<div class="kpi"><div class="lbl">Доходы</div><div class="val">'+fmt(inc)+' ₽</div></div>';
  h+='<div class="kpi"><div class="lbl">Расходы</div><div class="val">'+fmt(exp)+' ₽</div><div class="sub">платежи + ежедневные траты</div></div>';
  h+='<div class="kpi"><div class="lbl">Незавершённых задач</div><div class="val">'+allT+'</div></div></div>';
+ h+='<div class="card" style="border-top-color:'+(rem.some(r=>r.over)?'#ef4444':'#eab308')+'"><b>🔔 Напоминания по кредитам</b>';
+ if(!rem.length)h+='<div class="small" style="margin-top:6px">Ближайших платежей нет — всё оплачено или даты ещё далеко.</div>';
+ else h+='<div style="margin-top:6px">'+rem.map(r=>'<div style="margin:6px 0">'+(r.over?'🔴':'🟡')+' <b>'+esc(r.name)+'</b> — '+esc(r.dateStr)+' — платёж <b>'+fmt(r.pay)+' ₽</b>'+(r.over?' (просрочен)':' (осталось '+r.days+' дн.)')+'</div>').join('')+'</div>';
+ h+='</div>';
  h+='<div class="card"><b>Привычки сегодня</b><div id="habToday" style="margin-top:10px"></div></div>';
  $('#pg-home').innerHTML=h;
  const box=$('#habToday');
@@ -394,7 +419,7 @@ function finRender(){
  h+='<div class="mrow"><button class="btn gray" onclick="mvMonth(-1)">‹</button><span class="mname">'+esc(m.name)+'</span><button class="btn gray" onclick="mvMonth(1)">›</button>';
  h+='<select class="f" onchange="pickMonth(this.value)">'+S.months.map((x,i)=>'<option value="'+i+'" '+(i===S.finM?'selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select>';
  h+='<button class="btn" onclick="addMonth()">+ месяц (с переносом)</button><button class="btn red" onclick="delMonth()">Удалить месяц</button></div>';
- h+='<div class="tabs">'+[['ov','Обзор'],['ex','Ежедневные траты'],['sv','Сбережения'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
+ h+='<div class="tabs">'+[['ov','Обзор'],['cr','Кредиты и долги'],['ex','Ежедневные траты'],['sv','Сбережения'],['ch','Графики']].map(t=>'<button class="tab'+(S.finTab===t[0]?' on':'')+'" onclick="finSub(\''+t[0]+'\')">'+t[1]+'</button>').join('')+'</div>';
  h+='<div id="fin-body"></div>';
  $('#pg-fin').innerHTML=h;
  try{finBody();}catch(e){errShow('финансы',e);}
@@ -406,6 +431,7 @@ function finBody(){
  const m=S.months[S.finM],box=$('#fin-body');
  try{syncVarCats(m);}catch(e){}
  if(S.finTab==='ov')finOv(m,box);
+ else if(S.finTab==='cr')finCr(m,box);
  else if(S.finTab==='ex')finEx(m,box);
  else if(S.finTab==='sv')finSv(m,box);
  else finCh(m,box);
@@ -450,19 +476,20 @@ function finOv(m,box){
  h+=kpi('Обязательные платежи',fixPay,'сумма платежей по кредитам');
  h+=kpi('Сбережения',sav,'план '+fmt(pSav)+' ₽');
  h+='</div>';
- h+='<div class="card"><span class="small">Обязательные платежи — это ваши кредиты. Платёж пишется один раз в месяц, «Оплачено» — сколько уже внесли в этом месяце. Остаток долга переносится на следующий месяц автоматически.</span></div>';
+ h+='<div class="card"><span class="small">Обязательные платежи — это ваши кредиты. Платёж пишется один раз в месяц, «Оплачено» — сколько уже внесли в этом месяце. Остаток долга переносится на следующий месяц автоматически. Напоминания о ближайших платежах висят на Главной.</span></div>';
  h+=crHTML(m);
  h+=tableHTML(m,S.finM,'income','Доходы');
  h+=tableHTML(m,S.finM,'expVar','Переменные расходы');
  h+=tableHTML(m,S.finM,'sav','Сбережения');
  box.innerHTML=h;
 }
-/* таблица кредитов — используется в Обзоре как «Обязательные платежи» */
+/* таблица кредитов — используется и в Обзоре, и на вкладке «Кредиты и долги» */
 function crHTML(m){
- let h='<div class="card"><b>Обязательные платежи (кредиты)</b><table class="t"><tr><th>Банк</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
+ let h='<div class="card"><b>Обязательные платежи (кредиты)</b><table class="t"><tr><th>Банк</th><th style="width:80px">Дата</th><th class="r" style="width:100px">Платёж</th><th class="r" style="width:100px">Оплачено</th><th class="r" style="width:120px">Долг на начало</th><th class="r" style="width:110px">Остаток</th><th class="r" style="width:30px"></th></tr>';
  m.credits.forEach((c,i)=>{
   const rest=Math.max(0,(c.debtStart||0)-(c.paid||0));
   h+='<tr><td><input class="cell" value="'+esc(c.name)+'" oninput="setCr('+S.finM+','+i+',\'name\',this.value)"></td>';
+  h+='<td><input class="cell" type="number" min="1" max="31" placeholder="день" value="'+(c.due||'')+'" onchange="setCrNum('+S.finM+','+i+',\'due\',this.value)"></td>';
   h+='<td><input class="cell num" value="'+(c.pay||0)+'" onchange="setCrNum('+S.finM+','+i+',\'pay\',this.value)"></td>';
   h+='<td><input class="cell num" value="'+(c.paid||0)+'" onchange="setCrNum('+S.finM+','+i+',\'paid\',this.value)"></td>';
   h+='<td><input class="cell num" value="'+(c.debtStart||0)+'" onchange="setCrNum('+S.finM+','+i+',\'debtStart\',this.value)"></td>';
@@ -471,11 +498,14 @@ function crHTML(m){
  });
  const tot=f=>sum(m.credits,c=>c[f]||0);
  const totRest=sum(m.credits,c=>Math.max(0,(c.debtStart||0)-(c.paid||0)));
- h+='<tr style="font-weight:700"><td>Итого</td><td class="num">'+fmt(tot('pay'))+'</td><td class="num">'+fmt(tot('paid'))+'</td><td class="num">'+fmt(tot('debtStart'))+'</td><td class="num">'+fmt(totRest)+'</td><td></td></tr>';
+ h+='<tr style="font-weight:700"><td>Итого</td><td></td><td class="num">'+fmt(tot('pay'))+'</td><td class="num">'+fmt(tot('paid'))+'</td><td class="num">'+fmt(tot('debtStart'))+'</td><td class="num">'+fmt(totRest)+'</td><td></td></tr>';
  h+='</table><button class="btn" onclick="addCr('+S.finM+')">+ добавить кредит</button>';
  if(!m.credits.length)h+='<div class="small" style="margin-top:8px">Кредитов пока нет — добавьте первый кнопкой выше.</div>';
  h+='</div>';
  return h;
+}
+function finCr(m,box){
+ box.innerHTML=crHTML(m)+'<div class="card"><span class="small">Здесь те же кредиты, что и в Обзоре. В колонке «Дата» укажите день месяца, когда списывается платёж (например, 20 — значит 20-го числа). За 5 дней до этой даты на Главной появится напоминание: имя кредита, дата и сумма. Если «Оплачено» меньше платежа, напоминание будет висеть и после даты — пока не внесёте всю сумму.</span></div>';
 }
 /* поля обновляют данные без перерисовки (страница не прыгает), пересчёт — по уходу из поля */
 function tableHTML(m,mi,key,title){
@@ -537,7 +567,7 @@ function delSav(mi,i){S.months[mi].sav.splice(i,1);save();finBody();}
 /* ===== платежи по кредитам ===== */
 function setCr(mi,i,f,v){S.months[mi].credits[i][f]=v;save();}
 function setCrNum(mi,i,f,v){S.months[mi].credits[i][f]=parseFloat(String(v).replace(',','.'))||0;save();finBody();}
-function addCr(mi){S.months[mi].credits.push({name:'Новый банк',pay:0,paid:0,debtStart:0});save();finBody();}
+function addCr(mi){S.months[mi].credits.push({name:'Новый банк',pay:0,paid:0,debtStart:0,due:0});save();finBody();}
 function delCr(mi,i){S.months[mi].credits.splice(i,1);save();finBody();}
 function addMonth(){
  const nm=prompt('Название нового месяца (стандартное — тогда траты лягут на него, например «Декабрь»):','Новый месяц');if(nm==null)return;
